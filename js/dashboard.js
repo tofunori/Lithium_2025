@@ -137,10 +137,36 @@ function getStatusClass(status) {
     }
 }
 
+// --- Capacity Parsing and Radius Calculation ---
+function parseCapacity(capacityStr) {
+    if (!capacityStr || typeof capacityStr !== 'string') return null;
+    // Remove commas, '+' signs, and non-numeric characters except the first number part
+    const cleanedStr = capacityStr.replace(/,/g, '').replace(/\+/g, '');
+    const match = cleanedStr.match(/(\d+)/); // Find the first sequence of digits
+    if (match) {
+        const num = parseInt(match[0], 10);
+        return isNaN(num) ? null : num;
+    }
+    return null;
+}
+
+function calculateRadius(capacityNum) {
+    const minRadius = 6;
+    const maxRadius = 20;
+    const scaleFactor = 0.0002; // Adjust this to control sensitivity
+
+    if (capacityNum === null || capacityNum <= 0) {
+        return minRadius; // Default size for unknown/zero capacity
+    }
+    // Simple linear scale, capped at maxRadius
+    let radius = minRadius + capacityNum * scaleFactor;
+    return Math.min(radius, maxRadius);
+}
+
 
 // --- Map Initialization (Adapted) ---
 let mapInstance = null; // Store map instance
-let markersLayer = null; // Store markers layer
+let currentGeoJsonLayer = null; // Store the GeoJSON layer to easily remove/re-add
 
 function initializeMap(facilityCollection) {
     if (mapInstance) { // Avoid re-initializing map
@@ -197,13 +223,27 @@ function initializeMap(facilityCollection) {
     }
 
     // Create markers for each facility using the fetched data
-    L.geoJSON(facilityCollection, {
+    // Store the layer group so we can clear and redraw it
+    if (currentGeoJsonLayer) {
+        mapInstance.removeLayer(currentGeoJsonLayer); // Remove previous layer if updating
+    }
+
+    const sizeByCapacity = document.getElementById('sizeByCapacityToggle')?.checked || false;
+
+    currentGeoJsonLayer = L.geoJSON(facilityCollection, {
         pointToLayer: function(feature, latlng) {
-            const status = feature.properties.status;
+            const props = feature.properties;
+            const status = props.status;
             const color = getMarkerColor(status);
+            let radius = 8; // Default fixed radius
+
+            if (sizeByCapacity) {
+                const capacityNum = parseCapacity(props.capacity);
+                radius = calculateRadius(capacityNum);
+            }
 
             return L.circleMarker(latlng, {
-                radius: 8,
+                radius: radius, // Use dynamic or fixed radius
                 fillColor: color,
                 color: '#000',
                 weight: 1,
@@ -301,6 +341,15 @@ function highlightFacilityInList(facilityId) {
 // --- Event Listeners and Filtering/Searching (Adapted) ---
 
 function setupEventListeners() {
+    // Size by Capacity Toggle Listener
+    const sizeToggle = document.getElementById('sizeByCapacityToggle');
+    if (sizeToggle) {
+        sizeToggle.addEventListener('change', function() {
+            // Redraw map markers with the new setting
+            initializeMap(allFacilityData); // Re-initialize map markers
+        });
+    }
+
     // Filter tabs
     document.querySelectorAll('.tab-button').forEach(button => {
         button.addEventListener('click', function() {
