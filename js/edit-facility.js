@@ -3,23 +3,10 @@
 let currentFacilityId = null;
 let currentFacilityData = null; // Store the original fetched data
 
-// DOM Elements for Documents
-let documentUploadInput = null;
-let uploadDocumentButton = null;
-let uploadStatusMessage = null;
-let documentList = null;
-let noDocumentsMessage = null;
-
+// Removed Document DOM Element variables
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- Get Document Elements ---
-    documentUploadInput = document.getElementById('documentUploadInput');
-    uploadDocumentButton = document.getElementById('uploadDocumentButton');
-    uploadStatusMessage = document.getElementById('uploadStatusMessage');
-    documentList = document.getElementById('documentList');
-    noDocumentsMessage = document.getElementById('noDocumentsMessage');
-    // --- End Get Document Elements ---
-
+    // Removed getting Document DOM Elements
 
     // 1. Check Login Status
     const isLoggedIn = await checkLogin();
@@ -52,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         currentFacilityData = await response.json();
 
-        // 4. Populate the Form (including documents)
+        // 4. Populate the Form
         populateForm(currentFacilityData);
         if (pageTitleElement) pageTitleElement.textContent = `Edit: ${currentFacilityData.properties.name}`;
 
@@ -61,12 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelButton.href = `facilities/${currentFacilityId}.html`;
         }
 
-        // --- Add Upload Button Listener ---
-        if (uploadDocumentButton) {
-            uploadDocumentButton.addEventListener('click', handleDocumentUpload);
-        }
-        // --- End Add Upload Button Listener ---
-
+        // Removed Upload Button Listener
 
     } catch (error) {
         console.error('Error loading facility data:', error);
@@ -133,149 +115,13 @@ function populateForm(facility) {
         document.getElementById('timeline').value = '';
     }
 
-    // --- Populate Document List ---
-    populateDocumentList(props.documents);
-    // --- End Populate Document List ---
+    // Removed call to populateDocumentList
 }
 
-// Function to populate the list of uploaded documents
-function populateDocumentList(documents) {
-    if (!documentList || !noDocumentsMessage) return; // Elements not found
-
-    documentList.innerHTML = ''; // Clear existing list items
-
-    if (documents && Array.isArray(documents) && documents.length > 0) {
-        noDocumentsMessage.classList.add('d-none'); // Hide the 'no documents' message
-
-        documents.forEach(doc => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-
-            const link = document.createElement('a');
-            link.href = '#'; // Prevent default navigation
-            link.textContent = doc.filename;
-            link.dataset.filename = doc.filename; // Store filename for click handler
-            link.addEventListener('click', handleDocumentClick);
-
-            // Optional: Add file type icon or size/date info
-            const details = document.createElement('small');
-            details.className = 'text-muted ms-2';
-            let detailText = '';
-            if (doc.size) {
-                 detailText += `(${(doc.size / 1024 / 1024).toFixed(2)} MB)`;
-            }
-            if (doc.uploadedAt) {
-                 detailText += ` - ${new Date(doc.uploadedAt).toLocaleDateString()}`;
-            }
-            details.textContent = detailText;
-
-            li.appendChild(link);
-            li.appendChild(details);
-            documentList.appendChild(li);
-        });
-    } else {
-        // Show the 'no documents' message if the list is empty
-        noDocumentsMessage.classList.remove('d-none');
-        // Add the placeholder item back if needed, or just ensure it's visible
-         const li = document.createElement('li');
-         li.className = 'list-group-item text-muted';
-         li.id = 'noDocumentsMessage'; // Keep the ID consistent
-         li.textContent = 'No documents uploaded yet.';
-         documentList.appendChild(li);
-
-    }
-}
-
-// Function to handle clicking on a document link
-async function handleDocumentClick(event) {
-    event.preventDefault();
-    const filename = event.target.dataset.filename;
-    if (!filename || !currentFacilityId) {
-        console.error('Missing filename or facility ID for document click.');
-        showError('Could not get document link.');
-        return;
-    }
-
-    showError(''); // Clear previous errors
-    event.target.textContent = `Loading ${filename}...`; // Provide feedback
-
-    try {
-        const response = await fetch(`/api/facilities/${currentFacilityId}/documents/${filename}/url`);
-        const result = await response.json();
-
-        if (response.ok && result.url) {
-            window.open(result.url, '_blank'); // Open the signed URL in a new tab
-            event.target.textContent = filename; // Restore original text
-        } else {
-            throw new Error(result.message || `Failed to get download URL (Status: ${response.status})`);
-        }
-    } catch (error) {
-        console.error('Error fetching document URL:', error);
-        showError(`Error getting document link: ${error.message}`);
-        event.target.textContent = filename; // Restore original text on error
-    }
-}
-
-
-// Function to handle the document upload process
-async function handleDocumentUpload() {
-    if (!documentUploadInput || !documentUploadInput.files || documentUploadInput.files.length === 0) {
-        showUploadStatus('Please select a file to upload.', 'text-danger');
-        return;
-    }
-
-    const file = documentUploadInput.files[0];
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (match backend limit)
-
-    if (file.size > MAX_FILE_SIZE) {
-        showUploadStatus(`File is too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024} MB.`, 'text-danger');
-        return;
-    }
-
-    showUploadStatus(`Uploading ${file.name}...`, 'text-info');
-    uploadDocumentButton.disabled = true; // Disable button during upload
-
-    const formData = new FormData();
-    formData.append('document', file); // 'document' must match the field name in multer upload.single()
-
-    try {
-        const response = await fetch(`/api/facilities/${currentFacilityId}/documents`, {
-            method: 'POST',
-            body: formData
-            // No 'Content-Type' header needed for FormData, browser sets it correctly
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            showUploadStatus(`Successfully uploaded ${file.name}.`, 'text-success');
-            // Update the local data and refresh the list
-            if (currentFacilityData && currentFacilityData.properties) {
-                 currentFacilityData.properties.documents = result.documents; // Update with the list from backend
-                 populateDocumentList(currentFacilityData.properties.documents);
-            }
-            documentUploadInput.value = ''; // Clear the file input
-        } else {
-            throw new Error(result.message || `Upload failed (Status: ${response.status})`);
-        }
-
-    } catch (error) {
-        console.error('Error uploading document:', error);
-        showUploadStatus(`Error uploading file: ${error.message}`, 'text-danger');
-    } finally {
-        uploadDocumentButton.disabled = false; // Re-enable button
-        // Optionally clear the status message after a delay
-        setTimeout(() => showUploadStatus(''), 5000);
-    }
-}
-
-// Helper to show upload status messages
-function showUploadStatus(message, className = 'text-muted') {
-     if (uploadStatusMessage) {
-         uploadStatusMessage.textContent = message;
-         uploadStatusMessage.className = `form-text mt-1 ${className}`; // Reset classes and add new one
-     }
-}
+// Removed populateDocumentList function
+// Removed handleDocumentClick function
+// Removed handleDocumentUpload function
+// Removed showUploadStatus function
 
 
 // Function to handle form submission (for facility properties)
@@ -347,17 +193,10 @@ async function handleFormSubmit(event) {
          showError('Valid Longitude and Latitude are required.');
          return;
     }
-    const geometry = {
-        type: "Point",
-        coordinates: [longitude, latitude]
-    };
-
-    // Construct the full GeoJSON Feature object to send (though API only uses properties and geometry)
-    // We send only properties because the backend PUT expects only properties
-    // const updatedFacilityFeature = {
-    //     type: "Feature",
-    //     properties: updatedProperties,
-    //     geometry: geometry // Geometry is not currently updated via PUT in backend
+    // Geometry is not updated via this form/endpoint currently, but keep it for potential future use
+    // const geometry = {
+    //     type: "Point",
+    //     coordinates: [longitude, latitude]
     // };
 
     // --- Send data to API ---

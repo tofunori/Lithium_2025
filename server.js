@@ -43,7 +43,7 @@ const upload = multer({
 
 
 // Middleware to parse JSON bodies
-app.use(express.json());
+app.use(express.json()); // Needed for parsing link data
 
 // Middleware to serve static files (HTML, CSS, JS, images) from the root directory
 app.use(express.static(path.join(__dirname)));
@@ -201,7 +201,8 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
             ...facilitiesData.features[facilityIndex].properties,
             ...updatedProperties,
             id: facilityId, // Ensure ID is not overwritten
-            documents: updatedProperties.documents || existingDocuments // Preserve documents if not included in update
+            // Preserve documents if not included in update (important!)
+            documents: updatedProperties.documents || existingDocuments
         };
 
         await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
@@ -216,10 +217,9 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
 });
 
 
-// --- Document Upload Endpoints ---
+// --- Document/Link Management Endpoints ---
 
-// POST Upload a document for a specific facility
-// Frontend should send file under the field name 'document'
+// POST Upload a document file for a specific facility
 app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('document'), async (req, res) => {
     const facilityId = req.params.id;
 
@@ -244,42 +244,36 @@ app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('docume
         const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
 
         if (facilityIndex === -1) {
-            // Should not happen if facility exists, but good practice to check
-            // Optionally delete the uploaded file from storage if facility not found
-            // await bucket.file(destination).delete();
             return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
         }
 
-        // Ensure the documents array exists
         if (!facilitiesData.features[facilityIndex].properties.documents) {
             facilitiesData.features[facilityIndex].properties.documents = [];
         }
 
-        // Add document metadata (avoid duplicates if needed)
-        const existingDocIndex = facilitiesData.features[facilityIndex].properties.documents.findIndex(doc => doc.filename === originalFilename);
+        // Add or update document metadata
+        const existingDocIndex = facilitiesData.features[facilityIndex].properties.documents.findIndex(
+            doc => doc.type === 'file' && doc.filename === originalFilename
+        );
         const newDocMetadata = {
+            type: 'file', // Explicitly set type
             filename: originalFilename,
-            storagePath: destination, // Store the path used in Firebase Storage
+            storagePath: destination,
             uploadedAt: new Date().toISOString(),
             mimetype: req.file.mimetype,
             size: req.file.size
         };
 
         if (existingDocIndex > -1) {
-            // Replace existing entry if filename matches
             facilitiesData.features[facilityIndex].properties.documents[existingDocIndex] = newDocMetadata;
-            console.log(`Updated metadata for existing document: ${originalFilename}`);
+            console.log(`Updated metadata for existing file: ${originalFilename}`);
         } else {
-            // Add new entry
             facilitiesData.features[facilityIndex].properties.documents.push(newDocMetadata);
-            console.log(`Added metadata for new document: ${originalFilename}`);
+            console.log(`Added metadata for new file: ${originalFilename}`);
         }
 
-
-        // Write updated data back
         await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
 
-        // Respond with the updated documents list for the facility
         res.status(201).json({
             message: 'File uploaded successfully',
             documents: facilitiesData.features[facilityIndex].properties.documents
@@ -291,25 +285,83 @@ app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('docume
     }
 });
 
-// GET a temporary signed URL to download/view a specific document
+// POST Add a website link for a specific facility
+app.post('/api/facilities/:id/links', isAuthenticated, async (req, res) => {
+    const facilityId = req.params.id;
+    const { url, description } = req.body;
+
+    if (!url || !description) {
+        return res.status(400).json({ message: 'Missing URL or description for the link.' });
+    }
+
+    // Basic URL validation (can be improved)
+    try {
+        new URL(url);
+    } catch (_) {
+        return res.status(400).json({ message: 'Invalid URL format.' });
+    }
+
+    try {
+        // --- Update facilities.json ---
+        const data = await fs.readFile(dataFilePath, 'utf8');
+        let facilitiesData = JSON.parse(data);
+        const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
+
+        if (facilityIndex === -1) {
+            return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
+        }
+
+        if (!facilitiesData.features[facilityIndex].properties.documents) {
+            facilitiesData.features[facilityIndex].properties.documents = [];
+        }
+
+        // Add link metadata (consider checking for duplicate URLs/descriptions if needed)
+        const newLinkMetadata = {
+            type: 'link', // Explicitly set type
+            url: url,
+            description: description,
+            addedAt: new Date().toISOString()
+        };
+
+        facilitiesData.features[facilityIndex].properties.documents.push(newLinkMetadata);
+        console.log(`Added link '${description}' for facility ${facilityId}`);
+
+        await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
+
+        // Respond with the updated documents list for the facility
+        res.status(201).json({
+            message: 'Link added successfully',
+            documents: facilitiesData.features[facilityIndex].properties.documents
+        });
+
+    } catch (err) {
+        console.error(`Error adding link for facility ${facilityId}:`, err);
+        res.status(500).json({ message: 'Error adding link.' });
+    }
+});
+
+
+// GET a temporary signed URL to download/view a specific document file
+// Note: This endpoint only works for type: 'file'
 app.get('/api/facilities/:id/documents/:filename/url', isAuthenticated, async (req, res) => {
     const facilityId = req.params.id;
     const filename = req.params.filename;
     const storagePath = `${facilityId}/${filename}`; // Path within the bucket
 
     try {
-        // Check if file exists in storage (optional but good practice)
+        // Optional: Verify this entry exists in facilities.json and is type 'file' before checking storage
+        // ... (read facilities.json, find facility, find document by filename, check type)
+
         const [exists] = await bucket.file(storagePath).exists();
         if (!exists) {
-            console.warn(`Attempt to access non-existent file: ${storagePath}`);
+            console.warn(`Attempt to access non-existent file in storage: ${storagePath}`);
             return res.status(404).json({ message: 'File not found in storage.' });
         }
 
-        // Generate a signed URL for reading the file
         const options = {
-            version: 'v4', // Recommended version
+            version: 'v4',
             action: 'read',
-            expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
         };
 
         const [url] = await bucket.file(storagePath).getSignedUrl(options);
@@ -322,7 +374,7 @@ app.get('/api/facilities/:id/documents/:filename/url', isAuthenticated, async (r
     }
 });
 
-// --- End Document Upload Endpoints ---
+// --- End Document/Link Management Endpoints ---
 
 
 // --- Start Server ---
