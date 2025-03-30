@@ -53,7 +53,13 @@
                                         <a class="nav-link" href="documents.html">Documents</a> <!-- Added Documents Link -->
                                     </li>
                                 </ul>
-                                <div id="authStatus" class="d-flex align-items-center ms-3">
+                                <!-- Theme Toggle Switch -->
+                                <div class="form-check form-switch me-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="themeSwitch">
+                                    <label class="form-check-label" for="themeSwitch"><i class="fas fa-moon"></i></label>
+                                </div>
+                                <!-- End Theme Toggle Switch -->
+                                <div id="authStatus" class="d-flex align-items-center"> <!-- Removed ms-3 from here -->
                                     <!-- Login/Logout status will be loaded here -->
                                 </div>
                             </div>
@@ -167,6 +173,45 @@
 
         // Check auth status when the page loads
         document.addEventListener('DOMContentLoaded', checkAuthStatus);
+
+        // --- Theme Switcher Logic ---
+        const themeSwitch = document.getElementById('themeSwitch');
+        const themeIcon = document.querySelector('label[for="themeSwitch"] i'); // Get the icon
+        const currentTheme = localStorage.getItem('theme') ? localStorage.getItem('theme') : null;
+
+        // Apply saved theme on initial load
+        if (currentTheme) {
+            document.body.classList.add(currentTheme); // Add 'dark-theme' if saved
+            if (currentTheme === 'dark-theme') {
+                themeSwitch.checked = true;
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                 themeIcon.classList.remove('fa-sun');
+                 themeIcon.classList.add('fa-moon');
+            }
+        } else {
+            // Default icon if no theme saved
+             themeIcon.classList.add('fa-moon');
+        }
+
+
+        // Listener for theme switch toggle
+        themeSwitch.addEventListener('change', function(e) {
+            if (e.target.checked) {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark-theme');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('theme', 'light-theme'); // Explicitly save light theme
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        });
+        // --- End Theme Switcher Logic ---
+
     </script>
 </body>
 </html>

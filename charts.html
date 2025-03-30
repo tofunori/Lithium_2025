@@ -38,7 +38,7 @@
                                  <a class="nav-link" href="documents.html">Documents</a> <!-- Added Documents Link -->
                              </li>
                          </ul>
-                         <div id="authStatus" class="d-flex">
+                         <div id="authStatus" class="d-flex ms-3"> <!-- Added ms-3 back -->
                              <!-- Login/Logout status will be loaded here -->
                          </div>
                      </div>
@@ -130,10 +130,22 @@
     <!-- Custom Charts Page JS -->
     <script src="js/charts-page.js"></script>
     <!-- Shared Auth JS (or include directly in charts-page.js) -->
-    <script>
-        // Minimal Auth Check/Display Logic (can be moved to charts-page.js)
-        async function checkAuthStatus() {
-            const authStatusElement = document.getElementById('authStatus');
+   <script>
+       // --- Apply Theme on Load Logic ---
+       (function applyTheme() {
+           const currentTheme = localStorage.getItem('theme');
+           if (currentTheme === 'dark-theme') {
+                document.body.classList.add('dark-theme');
+           } else {
+                // Optional: explicitly ensure light theme class isn't present if needed
+                // document.body.classList.remove('dark-theme');
+           }
+       })(); // Immediately invoke the function
+       // --- End Apply Theme on Load Logic ---
+
+       // Minimal Auth Check/Display Logic (can be moved to charts-page.js)
+       async function checkAuthStatus() {
+           const authStatusElement = document.getElementById('authStatus');
             if (!authStatusElement) return;
 
             try {

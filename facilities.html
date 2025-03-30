@@ -37,7 +37,7 @@
                                  <a class="nav-link" href="documents.html">Documents</a> <!-- Added Documents Link -->
                              </li>
                          </ul>
-                         <div id="authStatus" class="d-flex">
+                         <div id="authStatus" class="d-flex ms-3"> <!-- Added ms-3 back -->
                              <!-- Login/Logout status will be loaded here -->
                          </div>
                      </div>
@@ -76,5 +76,67 @@
     <!-- Custom Facilities Page JS -->
     <script src="js/facilities-page.js"></script>
      <!-- REMOVED Inline Auth Script -->
+
+    <script>
+        // --- Apply Theme on Load Logic ---
+        (function applyTheme() {
+            const currentTheme = localStorage.getItem('theme');
+            if (currentTheme === 'dark-theme') {
+                 document.body.classList.add('dark-theme');
+            } else {
+                 // Optional: explicitly ensure light theme class isn't present if needed
+                 // document.body.classList.remove('dark-theme');
+            }
+        })(); // Immediately invoke the function
+        // --- End Apply Theme on Load Logic ---
+
+        // --- Auth Check Logic (Copied from index.html, needs to be on all pages) ---
+         async function checkAuthStatus() {
+            const authStatusElement = document.getElementById('authStatus');
+            if (!authStatusElement) return;
+
+            try {
+                const response = await fetch('/api/session');
+                const sessionData = await response.json();
+
+                if (sessionData.loggedIn) {
+                    authStatusElement.innerHTML = `
+                        <span>Welcome, ${sessionData.user.username}!</span>
+                        <a href="new-facility.html" class="btn btn-sm btn-success ms-2"><i class="fas fa-plus"></i> Add Facility</a>
+                        <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+                    `;
+                    // Add event listener for logout
+                    document.getElementById('logoutLink').addEventListener('click', handleLogout);
+                } else {
+                    authStatusElement.innerHTML = `
+                        <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                authStatusElement.innerHTML = '<span class="text-danger">Session check failed</span>';
+            }
+        }
+
+        async function handleLogout(event) {
+            event.preventDefault();
+            try {
+                const response = await fetch('/api/logout');
+                const result = await response.json();
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('An error occurred during logout.');
+            }
+        }
+
+        // Check auth status when the page loads
+        document.addEventListener('DOMContentLoaded', checkAuthStatus);
+        // --- End Auth Check Logic ---
+    </script>
 </body>
 </html>

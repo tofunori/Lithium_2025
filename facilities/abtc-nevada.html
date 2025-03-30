@@ -159,6 +159,18 @@
     <!-- REMOVED Facility Data Script -->
 
     <script>
+        // --- Apply Theme on Load Logic ---
+        (function applyTheme() {
+            const currentTheme = localStorage.getItem('theme');
+            if (currentTheme === 'dark-theme') {
+                 document.body.classList.add('dark-theme');
+            } else {
+                 // Optional: explicitly ensure light theme class isn't present if needed
+                 // document.body.classList.remove('dark-theme');
+            }
+        })(); // Immediately invoke the function
+        // --- End Apply Theme on Load Logic ---
+
         // *** IMPORTANT: Set the correct ID for this facility ***
         const facilityId = 'abtc-nevada';
         // *******************************************************
