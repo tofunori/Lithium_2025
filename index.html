@@ -30,44 +30,47 @@
         <!-- Hidden Subtitle for this page -->
         <p id="page-subtitle-main" style="display: none;">Interactive Map of Recycling Facilities</p>
 
-        <!-- Stats Cards Row REMOVED -->
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Stats Cards Row REMOVED -->
 
-        <div class="row">
-            <div class="col-12"> <!-- Changed from col-md-8 -->
-                <div class="map-container" id="map-container">
-                    <div id="map"></div>
+            <div class="row">
+                <div class="col-12"> <!-- Changed from col-md-8 -->
+                    <div class="map-container" id="map-container">
+                        <div id="map"></div>
 
-                        <h6 class="mb-2">Facility Status</h6>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #4CAF50;"></div>
-                            <span>Operating</span>
+                            <h6 class="mb-2">Facility Status</h6>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #4CAF50;"></div>
+                                <span>Operating</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #FFC107;"></div>
+                                <span>Under Construction</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #2196F3;"></div>
+                                <span>Planned</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #9C27B0;"></div>
+                                <span>Pilot</span>
+                            </div>
+                            </div>
                         </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #FFC107;"></div>
-                            <span>Under Construction</span>
+                        <hr style="margin: 8px 0;"> <!-- Separator -->
+                        <div class="form-check form-switch form-check-sm">
+                            <input class="form-check-input" type="checkbox" role="switch" id="sizeByCapacityToggle">
+                            <label class="form-check-label" for="sizeByCapacityToggle" style="font-size: 0.9em;">Size by Capacity</label>
                         </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #2196F3;"></div>
-                            <span>Planned</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: #9C27B0;"></div>
-                            <span>Pilot</span>
-                        </div>
-                        </div>
-                    </div>
-                    <hr style="margin: 8px 0;"> <!-- Separator -->
-                    <div class="form-check form-switch form-check-sm">
-                        <input class="form-check-input" type="checkbox" role="switch" id="sizeByCapacityToggle">
-                        <label class="form-check-label" for="sizeByCapacityToggle" style="font-size: 0.9em;">Size by Capacity</label>
                     </div>
                 </div>
-            </div>
-        </div> <!-- End of first row (Map only) -->
+            </div> <!-- End of first row (Map only) -->
 
-        <!-- Facilities List Row REMOVED -->
+            <!-- Facilities List Row REMOVED -->
 
-        <!-- Charts Row REMOVED -->
+            <!-- Charts Row REMOVED -->
+        </main> <!-- End Main Content Area -->
 
     </div> <!-- End dashboard-container -->
 
@@ -82,12 +85,11 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Common JS (Loads Header, Handles Theme/Auth) -->
-    <script src="js/common.js"></script>
-
     <!-- Page-Specific Dashboard JS -->
-    <script src="js/dashboard.js"></script>
+    <script src="js/dashboard.js" data-page-script="true"></script>
+
+    <!-- Common JS (Loads Header, Handles Theme/Auth, SPA Routing) -->
+    <script src="js/common.js"></script>
 
     <!-- Removed inline script block -->
 </body>

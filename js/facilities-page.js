@@ -1,16 +1,35 @@
 // facilities-page.js - Logic for the Facilities List page
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadFacilitiesPageData(); // Load data and initialize
-});
+// Removed DOMContentLoaded listener
 
-let facilitiesPageData = null;
-let isLoggedIn = false; // Store login status
+let facilitiesPageData = null; // Store fetched data globally for this page scope
+
+// NEW: Initialization function called by router
+window.initFacilitiesPage = function() {
+    console.log("Initializing Facilities Page..."); // Debug log
+    const listElement = document.getElementById('facilitiesList');
+    if (!listElement) {
+        console.error("Facilities list element (#facilitiesList) not found. Aborting initialization.");
+        return;
+    }
+    // Reset data cache in case it was loaded previously with different filters/state
+    // facilitiesPageData = null; // Optional: uncomment to force reload every time
+    loadFacilitiesPageData(); // Load data and initialize
+}
 
 async function loadFacilitiesPageData() {
-    isLoggedIn = await checkAuthStatus(); // Check login status first
+    console.log("Loading facilities page data..."); // Debug log
+    // Removed auth check - handled by common.js
 
     try {
+        // Use cached data if available (optional optimization)
+        // if (facilitiesPageData) {
+        //     console.log("Using cached facilities page data.");
+        //     populateFacilitiesList(facilitiesPageData);
+        //     setupListEventListeners();
+        //     return;
+        // }
+
         const response = await fetch('/api/facilities');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -19,13 +38,13 @@ async function loadFacilitiesPageData() {
 
         if (!facilitiesPageData || !facilitiesPageData.features) {
              console.error('Fetched data is not in the expected format:', facilitiesPageData);
-             // Display error message?
+             const listElement = document.getElementById('facilitiesList');
+             if(listElement) listElement.innerHTML = '<p class="text-danger text-center">Facility data format error.</p>';
              return;
         }
 
-        // Initialize components, passing login status
-        console.log("Calling populateFacilitiesList with isLoggedIn:", isLoggedIn); // Log 4
-        populateFacilitiesList(facilitiesPageData, isLoggedIn);
+        // Initialize components
+        populateFacilitiesList(facilitiesPageData); // Pass only data
         setupListEventListeners(); // Setup listeners for this page
 
     } catch (error) {
@@ -65,18 +84,21 @@ function getStatusClass(status) {
 
 // --- Facilities List ---
 
-function populateFacilitiesList(facilityCollection, isLoggedIn) { // Added isLoggedIn parameter
-    console.log("populateFacilitiesList received isLoggedIn:", isLoggedIn); // Log 5
+function populateFacilitiesList(facilityCollection) { // Removed isLoggedIn parameter
     const facilitiesList = document.getElementById('facilitiesList');
 
     if (!facilitiesList) {
         console.error('Facilities list element not found');
         return;
     }
-     if (!facilityCollection || !facilityCollection.features) {
-         facilitiesList.innerHTML = '<p class="text-muted">No facilities to display.</p>';
+     if (!facilityCollection || !facilityCollection.features || facilityCollection.features.length === 0) {
+         facilitiesList.innerHTML = '<p class="text-muted text-center">No facilities found.</p>';
          return;
      }
+
+    // Determine login status by checking if logout link exists (added by common.js)
+    const isLoggedIn = !!document.getElementById('logoutLink');
+    console.log("populateFacilitiesList determined isLoggedIn:", isLoggedIn); // Debug log
 
     // Clear existing content
     facilitiesList.innerHTML = '';
@@ -91,7 +113,7 @@ function populateFacilitiesList(facilityCollection, isLoggedIn) { // Added isLog
         facilityItem.setAttribute('data-id', props.id);
         facilityItem.className = `facility-item`; // Removed ID from class for simplicity
         facilityItem.innerHTML = `
-            <a href="facilities/${props.id}.html">
+            <a href="facilities/${props.id}.html" class="facility-link"> <!-- Added class for potential SPA handling -->
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <h6 class="mb-0">${props.name}</h6>
@@ -99,7 +121,7 @@ function populateFacilitiesList(facilityCollection, isLoggedIn) { // Added isLog
                     </div>
                     <div> <!-- Wrapper for status and potential edit button -->
                         <span class="status-badge ${statusClass}">${props.status}</span>
-                        ${isLoggedIn === true ? `<a href="edit-facility.html?id=${props.id}" class="btn btn-sm btn-outline-secondary ms-2" title="Edit Facility"><i class="fas fa-edit"></i></a>` : ''}
+                        ${isLoggedIn ? `<a href="edit-facility.html?id=${props.id}" class="btn btn-sm btn-outline-secondary ms-2 edit-link" title="Edit Facility"><i class="fas fa-edit"></i></a>` : ''}
                     </div>
                 </div>
             </a> <!-- Main link still goes to detail page -->
@@ -107,42 +129,50 @@ function populateFacilitiesList(facilityCollection, isLoggedIn) { // Added isLog
 
         facilitiesList.appendChild(facilityItem);
     });
+
+    // Re-attach SPA navigation listeners if needed (will be handled by common.js/router)
+    // setupSPALinks(); // Example placeholder
 }
 
 // --- Event Listeners and Filtering/Searching ---
 
 function setupListEventListeners() {
+    console.log("Setting up facilities list event listeners..."); // Debug log
     // Filter tabs
     document.querySelectorAll('.tab-button').forEach(button => {
+        // Prevent adding listener multiple times
+        if (button.hasAttribute('data-listener-added')) return;
+
         button.addEventListener('click', function() {
-            // Remove active class from all buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-
-            // Add active class to clicked button
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
-
-            // Apply filter using the stored data
             const filter = this.getAttribute('data-filter');
             filterFacilities(filter, facilitiesPageData); // Pass data
         });
+        button.setAttribute('data-listener-added', 'true'); // Mark as added
     });
 
     // Search input
     const searchInput = document.getElementById('facilitySearch');
     if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            searchFacilities(this.value, facilitiesPageData); // Pass data
-        });
+        // Prevent adding listener multiple times
+        if (!searchInput.hasAttribute('data-listener-added')) {
+            searchInput.addEventListener('input', function() {
+                searchFacilities(this.value, facilitiesPageData); // Pass data
+            });
+            searchInput.setAttribute('data-listener-added', 'true'); // Mark as added
+        }
+    } else {
+        console.warn("Facility search input not found when setting up listeners.");
     }
 }
 
 // Filter facilities by status
 function filterFacilities(filter, facilityCollection) {
-    const facilityItems = document.querySelectorAll('.facility-item');
+    const facilityItems = document.querySelectorAll('#facilitiesList .facility-item'); // Target items within the list
      if (!facilityCollection || !facilityCollection.features) return; // Check if data exists
 
+    let visibleCount = 0;
     facilityItems.forEach(item => {
         const facilityId = item.getAttribute('data-id'); // Get ID from data attribute
         const facility = getFacilityById(facilityId, facilityCollection); // Use helper with data
@@ -150,25 +180,44 @@ function filterFacilities(filter, facilityCollection) {
         if (!facility) return;
 
         const status = facility.properties.status.toLowerCase();
+        let shouldShow = false;
 
         if (filter === 'all' ||
             (filter === 'operating' && status === 'operating') ||
             (filter === 'construction' && status === 'under construction') ||
             // Combine Planned and Pilot for the 'Planned' tab
             (filter === 'planned' && (status === 'planned' || status === 'pilot'))) {
-            item.style.display = '';
-        } else {
-            item.style.display = 'none';
+            shouldShow = true;
         }
+
+        item.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) visibleCount++;
     });
+
+    // Optional: Show message if no facilities match filter
+    const listElement = document.getElementById('facilitiesList');
+    let noMatchMsg = listElement.querySelector('.no-match-message');
+    if (visibleCount === 0) {
+        if (!noMatchMsg) {
+            noMatchMsg = document.createElement('p');
+            noMatchMsg.className = 'text-muted text-center no-match-message';
+            noMatchMsg.textContent = 'No facilities match the current filter.';
+            listElement.appendChild(noMatchMsg);
+        }
+    } else {
+        if (noMatchMsg) {
+            noMatchMsg.remove();
+        }
+    }
 }
 
 // Search facilities by name, company, or location
 function searchFacilities(query, facilityCollection) {
-    const facilityItems = document.querySelectorAll('.facility-item');
-    const searchQuery = query.toLowerCase();
+    const facilityItems = document.querySelectorAll('#facilitiesList .facility-item'); // Target items within the list
+    const searchQuery = query.toLowerCase().trim();
      if (!facilityCollection || !facilityCollection.features) return; // Check if data exists
 
+    let visibleCount = 0;
     facilityItems.forEach(item => {
         const facilityId = item.getAttribute('data-id'); // Get ID from data attribute
         const facility = getFacilityById(facilityId, facilityCollection); // Use helper with data
@@ -177,66 +226,31 @@ function searchFacilities(query, facilityCollection) {
 
         const props = facility.properties;
         const searchText = `${props.name || ''} ${props.company || ''} ${props.address || ''}`.toLowerCase();
+        const shouldShow = searchText.includes(searchQuery);
 
-        if (searchText.includes(searchQuery)) {
-            item.style.display = '';
-        } else {
-            item.style.display = 'none';
-        }
+        item.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) visibleCount++;
     });
-}
 
-
-// --- Auth Check/Logout ---
-async function checkAuthStatus() {
-    console.log("Checking auth status..."); // Log 1
-    try {
-        const response = await fetch('/api/session');
-        const sessionData = await response.json();
-        console.log("Session API response:", sessionData); // Log 2
-        updateHeaderAuthStatus(sessionData); // Update header based on status
-        console.log("Returning loggedIn status:", sessionData.loggedIn); // Log 3
-        return sessionData.loggedIn; // Return login status
-    } catch (error) {
-        console.error('Error checking auth status:', error);
-        updateHeaderAuthStatus({ loggedIn: false, error: true }); // Update header indicating error
-        return false; // Assume not logged in on error
-    }
-}
-
-function updateHeaderAuthStatus(sessionData) {
-     const authStatusElement = document.getElementById('authStatus');
-     if (!authStatusElement) return;
-
-     if (sessionData.loggedIn) {
-         authStatusElement.innerHTML = `
-             <span class="navbar-text me-3">Welcome, ${sessionData.user.username}!</span>
-             <a href="new-facility.html" class="btn btn-sm btn-success me-2"><i class="fas fa-plus"></i> Add Facility</a>
-             <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger">Logout</a>
-         `;
-         const logoutLink = document.getElementById('logoutLink');
-         if(logoutLink) logoutLink.addEventListener('click', handleLogout);
-     } else {
-         authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
-     }
-     if (sessionData.error) {
-          authStatusElement.innerHTML += ' <span class="text-danger small">(Session check failed)</span>';
-     }
-}
-
-
-async function handleLogout(event) {
-    event.preventDefault();
-    try {
-        const response = await fetch('/api/logout');
-        const result = await response.json();
-        if (result.success) {
-            window.location.reload();
-        } else {
-            alert('Logout failed. Please try again.');
+     // Optional: Show message if no facilities match search
+    const listElement = document.getElementById('facilitiesList');
+    let noMatchMsg = listElement.querySelector('.no-match-message'); // Reuse filter message element
+    if (visibleCount === 0 && searchQuery !== '') { // Only show if searching and no results
+        if (!noMatchMsg) {
+            noMatchMsg = document.createElement('p');
+            noMatchMsg.className = 'text-muted text-center no-match-message';
+            listElement.appendChild(noMatchMsg);
         }
-    } catch (error) {
-        console.error('Logout error:', error);
-        alert('An error occurred during logout.');
+        noMatchMsg.textContent = 'No facilities match your search.';
+    } else {
+        if (noMatchMsg) {
+            noMatchMsg.remove();
+        }
     }
 }
+
+
+// --- REMOVED Auth Check/Logout Functions (Handled by common.js) ---
+// REMOVED checkAuthStatus
+// REMOVED updateHeaderAuthStatus
+// REMOVED handleLogout

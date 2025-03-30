@@ -1,14 +1,38 @@
 // charts-page.js - Logic for the Charts & Stats page
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadChartsPageData();
-    checkAuthStatus(); // Also check login status for header
-});
+// Removed DOMContentLoaded listener
 
-let chartsPageData = null;
+let chartsPageData = null; // Cache data for this page scope
+let capacityChartInstance = null;
+let technologiesChartInstance = null;
+let regionsChartInstance = null;
+
+// NEW: Initialization function called by router
+window.initChartsPage = function() {
+    console.log("Initializing Charts Page..."); // Debug log
+    // Check if essential elements exist before proceeding
+    const capacityCanvas = document.getElementById('capacityChart');
+    const statsContainer = document.querySelector('.total-facilities'); // Check for one stats element
+
+    if (!capacityCanvas || !statsContainer) {
+        console.error("Required chart or stats elements not found. Aborting charts page initialization.");
+        return;
+    }
+    loadChartsPageData();
+    // Removed auth check - handled by common.js
+}
 
 async function loadChartsPageData() {
+    console.log("Loading charts page data..."); // Debug log
     try {
+        // Use cached data if available
+        // if (chartsPageData) {
+        //     console.log("Using cached charts page data.");
+        //     updateStatistics(chartsPageData);
+        //     initializeCharts(chartsPageData);
+        //     return;
+        // }
+
         const response = await fetch('/api/facilities');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -28,7 +52,8 @@ async function loadChartsPageData() {
     } catch (error) {
         console.error('Error fetching facility data for charts:', error);
         // Display error messages on the page if needed
-        document.querySelector('.total-facilities').textContent = 'Err';
+        const totalEl = document.querySelector('.total-facilities');
+        if (totalEl) totalEl.textContent = 'Err';
         // Could add error messages to chart canvases
     }
 }
@@ -51,7 +76,7 @@ function getFacilitiesByStatus(facilityCollection) {
     if (counts[status] !== undefined) {
       counts[status]++;
     } else {
-        console.warn("Unknown status found:", status); // Log unknown statuses
+        // console.warn("Unknown status found:", status); // Log unknown statuses
     }
   });
   return counts;
@@ -90,29 +115,29 @@ function getFacilitiesByTechnology(facilityCollection) {
 // --- Statistics Update ---
 
 function updateStatistics(facilityCollection) {
+    console.log("Updating statistics..."); // Debug log
     const statusCounts = getFacilitiesByStatus(facilityCollection);
     const totalFacilities = facilityCollection?.features?.length ?? 0;
 
-    // Update counters
+    // Update counters - Check if elements exist first
     const totalEl = document.querySelector('.total-facilities');
     const operatingEl = document.querySelector('.operating-facilities');
     const constructionEl = document.querySelector('.construction-facilities');
     const plannedEl = document.querySelector('.planned-facilities');
 
     if (totalEl) totalEl.textContent = totalFacilities;
-    if (operatingEl) operatingEl.textContent = statusCounts['Operating'];
-    if (constructionEl) constructionEl.textContent = statusCounts['Under Construction'];
+    if (operatingEl) operatingEl.textContent = statusCounts['Operating'] || 0;
+    if (constructionEl) constructionEl.textContent = statusCounts['Under Construction'] || 0;
     // Combine Planned and Pilot for the card display as before
     if (plannedEl) plannedEl.textContent = (statusCounts['Planned'] || 0) + (statusCounts['Pilot'] || 0);
 }
 
 
 // --- Charts Initialization ---
-let capacityChartInstance = null;
-let technologiesChartInstance = null;
-let regionsChartInstance = null;
+// Chart instances moved to global scope
 
 function initializeCharts(facilityCollection) {
+    console.log("Initializing charts..."); // Debug log
     createCapacityChart(facilityCollection);
     createTechnologiesChart(facilityCollection);
     createRegionsChart(facilityCollection);
@@ -121,8 +146,11 @@ function initializeCharts(facilityCollection) {
 // Create capacity by status chart
 function createCapacityChart(facilityCollection) {
     const ctx = document.getElementById('capacityChart');
-    if (!ctx) return;
-    if (capacityChartInstance) capacityChartInstance.destroy();
+    if (!ctx) {
+        console.warn("Capacity chart canvas not found.");
+        return;
+    }
+    if (capacityChartInstance) capacityChartInstance.destroy(); // Destroy existing chart if it exists
 
     const capacities = {
         'Operating': 0,
@@ -132,6 +160,7 @@ function createCapacityChart(facilityCollection) {
     };
      if (!facilityCollection || !facilityCollection.features) {
          console.warn("No data for capacity chart.");
+         // Optionally display a message on the canvas
          return;
      }
 
@@ -156,6 +185,7 @@ function createCapacityChart(facilityCollection) {
         }
     });
 
+    console.log("Creating Capacity Chart with data:", capacities); // Debug log
     capacityChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -177,7 +207,10 @@ function createCapacityChart(facilityCollection) {
 // Create technologies distribution chart
 function createTechnologiesChart(facilityCollection) {
     const ctx = document.getElementById('technologiesChart');
-    if (!ctx) return;
+    if (!ctx) {
+         console.warn("Technologies chart canvas not found.");
+         return;
+    }
      if (technologiesChartInstance) technologiesChartInstance.destroy();
 
     const techCounts = getFacilitiesByTechnology(facilityCollection);
@@ -186,6 +219,7 @@ function createTechnologiesChart(facilityCollection) {
          return;
      }
 
+    console.log("Creating Technologies Chart with data:", techCounts); // Debug log
     technologiesChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -202,7 +236,10 @@ function createTechnologiesChart(facilityCollection) {
 // Create regions distribution chart
 function createRegionsChart(facilityCollection) {
     const ctx = document.getElementById('regionsChart');
-    if (!ctx) return;
+    if (!ctx) {
+        console.warn("Regions chart canvas not found.");
+        return;
+    }
      if (regionsChartInstance) regionsChartInstance.destroy();
 
     const regionCounts = getFacilitiesByRegion(facilityCollection);
@@ -211,6 +248,7 @@ function createRegionsChart(facilityCollection) {
          return;
      }
 
+    console.log("Creating Regions Chart with data:", regionCounts); // Debug log
     regionsChartInstance = new Chart(ctx, {
         type: 'pie',
         data: {
@@ -224,42 +262,4 @@ function createRegionsChart(facilityCollection) {
     });
 }
 
-// --- Auth Check/Logout (Copied from index.html script) ---
-async function checkAuthStatus() {
-    const authStatusElement = document.getElementById('authStatus');
-    if (!authStatusElement) return;
-    try {
-        const response = await fetch('/api/session');
-        const sessionData = await response.json();
-        if (sessionData.loggedIn) {
-            authStatusElement.innerHTML = `
-                <span class="navbar-text me-3">Welcome, ${sessionData.user.username}!</span>
-                <a href="new-facility.html" class="btn btn-sm btn-success me-2"><i class="fas fa-plus"></i> Add Facility</a>
-                <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger">Logout</a>
-            `;
-            const logoutLink = document.getElementById('logoutLink');
-            if(logoutLink) logoutLink.addEventListener('click', handleLogout);
-        } else {
-            authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
-        }
-    } catch (error) {
-        console.error('Error checking auth status:', error);
-        authStatusElement.innerHTML = '<span class="text-danger small">Session check failed</span>';
-    }
-}
-
-async function handleLogout(event) {
-    event.preventDefault();
-    try {
-        const response = await fetch('/api/logout');
-        const result = await response.json();
-        if (result.success) {
-            window.location.reload();
-        } else {
-            alert('Logout failed. Please try again.');
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-        alert('An error occurred during logout.');
-    }
-}
+// --- REMOVED Auth Check/Logout Functions ---

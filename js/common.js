@@ -1,75 +1,230 @@
+// js/common.js - Handles header loading, theme, auth, and SPA routing
+
+// --- Page Initializers Mapping (Store NAMES now) ---
+const pageInitializerNames = {
+    'index.html': 'initDashboardPage',
+    '': 'initDashboardPage', // Handle root path
+    'facilities.html': 'initFacilitiesPage',
+    'charts.html': 'initChartsPage',
+    'documents.html': 'initDocumentsPage',
+    'about.html': null // No specific JS needed for about page yet
+};
+
+// --- Initial Load ---
 document.addEventListener('DOMContentLoaded', function() {
     const headerPlaceholder = document.getElementById('header-placeholder');
-    const pageSubtitleElement = document.getElementById('page-subtitle-main'); // Optional: Element in main page to get subtitle from
 
     if (headerPlaceholder) {
         fetch('includes/_header.html')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.text();
-            })
+            .then(response => response.ok ? response.text() : Promise.reject(`HTTP error loading header! status: ${response.status}`))
             .then(html => {
                 headerPlaceholder.innerHTML = html;
-
-                // Set Active Nav Link
                 setActiveNavLink();
-
-                // Set Page Subtitle (if element exists on main page)
-                const headerSubtitleElement = document.getElementById('page-subtitle');
-                if (pageSubtitleElement && headerSubtitleElement) {
-                    headerSubtitleElement.textContent = pageSubtitleElement.textContent;
-                } else if (headerSubtitleElement) {
-                    // Set a default or leave empty if no specific subtitle found
-                    // headerSubtitleElement.textContent = "Dashboard Overview";
-                }
-
-
-                // Initialize Theme Switcher (moved from inline script)
                 initializeThemeSwitcher();
-
-                // Initialize Auth Check (moved from inline script)
-                checkAuthStatus();
+                return checkAuthStatus(); // Return promise to chain
+            })
+            .then(() => {
+                 // Initial Page JS Execution (Run directly since script is already loaded)
+                 const initialPath = window.location.pathname.split('/').pop() || 'index.html';
+                 console.log(`Initial page path: ${initialPath}`);
+                 const initializerName = pageInitializerNames[initialPath];
+                 if (initializerName && typeof window[initializerName] === 'function') {
+                     console.log(`Running initializer for initial load: ${initialPath}`);
+                     try {
+                        window[initializerName]();
+                     } catch (initError) {
+                         console.error(`Error running initializer for ${initialPath}:`, initError);
+                     }
+                 } else {
+                     console.log(`No initializer function found in window scope for initial load: ${initialPath} (Expected: ${initializerName})`);
+                 }
+                 // Initialize Router AFTER everything else
+                 initializeRouter();
+                 // Set Initial Subtitle
+                 const pageSubtitleElement = document.getElementById('page-subtitle-main');
+                 const headerSubtitleElement = document.getElementById('page-subtitle');
+                 if (pageSubtitleElement && headerSubtitleElement) {
+                     headerSubtitleElement.textContent = pageSubtitleElement.textContent;
+                 }
             })
             .catch(error => {
-                console.error('Error loading header:', error);
-                headerPlaceholder.innerHTML = '<p class="text-danger">Error loading header content.</p>';
+                console.error('Error during initial setup:', error);
+                if (headerPlaceholder) headerPlaceholder.innerHTML = '<p class="text-danger">Error loading site header.</p>';
             });
     } else {
         console.error('Header placeholder element not found.');
     }
 });
 
+
+// --- SPA Routing Logic ---
+
+function initializeRouter() {
+    console.log("Initializing SPA Router...");
+    const headerPlaceholder = document.getElementById('header-placeholder');
+    if (!headerPlaceholder) {
+        console.error("Cannot initialize router: Header placeholder not found.");
+        return;
+    }
+
+    // Event delegation for navigation links
+    headerPlaceholder.addEventListener('click', (event) => {
+        const link = event.target.closest('a.nav-link');
+        if (link) {
+            const url = link.getAttribute('href');
+            if (url && !url.startsWith('#') && !url.startsWith('javascript:') && !url.startsWith('http://') && !url.startsWith('https://')) {
+                 if (link.id === 'logoutLink') return;
+                event.preventDefault();
+                console.log(`Navigating to: ${url}`);
+                loadPageContent(url);
+            }
+        }
+    });
+
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', (event) => {
+        console.log("Popstate event triggered:", event.state);
+        const url = event.state?.path || window.location.pathname;
+        if (url === window.location.pathname && !event.state) {
+            console.log("Popstate ignored for initial state.");
+            return;
+        }
+        loadPageContent(url, false);
+    });
+     console.log("Router initialized.");
+}
+
+async function loadPageContent(url, pushState = true) {
+    console.log(`Loading content for: ${url}, pushState: ${pushState}`);
+    const mainContentElement = document.getElementById('main-content');
+    if (!mainContentElement) {
+        console.error("Main content element (#main-content) not found!");
+        return;
+    }
+
+    mainContentElement.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(response.status === 404 ? `Page not found (404) for ${url}` : `HTTP error! status: ${response.status} for ${url}`);
+        }
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const newMainContent = doc.getElementById('main-content');
+        const newTitle = doc.querySelector('title')?.textContent || 'Lithium Dashboard';
+        const pageScriptTag = doc.querySelector('script[data-page-script="true"]'); // Find page script tag
+        const pageScriptSrc = pageScriptTag ? pageScriptTag.getAttribute('src') : null;
+        const pagePath = url.split('/').pop() || 'index.html';
+        const initializerName = pageInitializerNames[pagePath];
+
+        if (newMainContent) {
+            // --- Update Core DOM ---
+            mainContentElement.innerHTML = newMainContent.innerHTML;
+            document.title = newTitle;
+            if (pushState && window.location.pathname !== url && window.location.href !== url) {
+                history.pushState({ path: url }, newTitle, url);
+                console.log("Pushed state:", url);
+            }
+            setActiveNavLink();
+            const newPageSubtitleElement = doc.getElementById('page-subtitle-main');
+            const headerSubtitleElement = document.getElementById('page-subtitle');
+            if (headerSubtitleElement) {
+                headerSubtitleElement.textContent = newPageSubtitleElement ? newPageSubtitleElement.textContent : '';
+            }
+            // --- End Update Core DOM ---
+
+
+            // --- Handle Page Script Loading & Initialization ---
+            const oldScript = document.getElementById('page-specific-script');
+            if (oldScript) {
+                console.log("Removing old page script.");
+                oldScript.remove();
+            }
+
+            // Define the function to run the initializer *after* script loads
+            const runInitializer = () => {
+                if (initializerName && typeof window[initializerName] === 'function') {
+                    console.log(`Running initializer: ${initializerName}`);
+                    try {
+                        window[initializerName]();
+                    } catch (initError) {
+                        console.error(`Error running initializer ${initializerName}:`, initError);
+                    }
+                } else {
+                    console.log(`Initializer ${initializerName || 'none specified'} not found or not a function.`);
+                }
+            };
+
+            // Load and execute the script if found
+            if (pageScriptSrc) {
+                console.log(`Found page script: ${pageScriptSrc}. Loading...`);
+                const newScript = document.createElement('script');
+                newScript.id = 'page-specific-script'; // ID to find and remove later
+                newScript.src = pageScriptSrc;
+                newScript.onload = () => {
+                    console.log(`Script ${pageScriptSrc} loaded.`);
+                    runInitializer(); // Run initializer AFTER script loads
+                };
+                newScript.onerror = () => {
+                    console.error(`Failed to load page script: ${pageScriptSrc}`);
+                    // Maybe still try to run initializer if it exists without script? Unlikely.
+                };
+                document.body.appendChild(newScript);
+            } else {
+                console.log(`No data-page-script found for ${url}.`);
+                // If no script is needed, but an initializer function *is* defined
+                // (e.g., for a simple page that just needs a minor JS tweak defined globally), run it directly.
+                 runInitializer(); // Try running anyway, might be null/not found.
+            }
+            // --- End Handle Page Script ---
+
+            window.scrollTo(0, 0);
+
+        } else {
+            throw new Error(`Could not find #main-content in fetched HTML for ${url}`);
+        }
+
+    } catch (error) {
+        console.error('Error loading page content:', error);
+        mainContentElement.innerHTML = `<p class="text-danger text-center">Failed to load page: ${error.message}. Please try again.</p>`;
+    }
+}
+
+
+// --- Existing Functions (setActiveNavLink, Theme, Auth, Logout - unchanged from previous version) ---
+
 function setActiveNavLink() {
-    const currentPagePath = window.location.pathname.split('/').pop(); // Gets 'index.html', 'about.html', etc.
-    const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
-
+    const currentPath = window.location.pathname;
+    const normalizedPath = currentPath === '/' ? 'index.html' : currentPath.substring(currentPath.lastIndexOf('/') + 1);
+    console.log(`Setting active nav link for path: ${normalizedPath}`);
+    const navLinks = document.querySelectorAll('#header-placeholder .navbar-nav .nav-link');
+    if (!navLinks || navLinks.length === 0) {
+        console.warn("No nav links found to set active state.");
+        return;
+    }
     navLinks.forEach(link => {
-        const linkPath = link.getAttribute('href').split('/').pop();
-        link.classList.remove('active'); // Remove active class from all
+        const linkUrl = new URL(link.href, window.location.origin);
+        const linkPath = linkUrl.pathname === '/' ? 'index.html' : linkUrl.pathname.substring(linkUrl.pathname.lastIndexOf('/') + 1);
+        link.classList.remove('active');
         link.removeAttribute('aria-current');
-
-        // Handle root path case for index.html
-        if ((currentPagePath === '' || currentPagePath === 'index.html') && linkPath === 'index.html') {
-             link.classList.add('active');
-             link.setAttribute('aria-current', 'page');
-        } else if (currentPagePath === linkPath && linkPath !== 'index.html') {
+        if (normalizedPath === linkPath) {
             link.classList.add('active');
             link.setAttribute('aria-current', 'page');
         }
     });
 }
 
-// --- Theme Switcher Logic (Moved from inline script) ---
 function initializeThemeSwitcher() {
     const themeSwitch = document.getElementById('themeSwitch');
     const themeIcon = document.querySelector('label[for="themeSwitch"] i');
-    if (!themeSwitch || !themeIcon) return; // Elements might not be loaded yet if fetch failed
-
+    if (!themeSwitch || !themeIcon) {
+        console.warn("Theme switch elements not found.");
+        return;
+    }
     const currentTheme = localStorage.getItem('theme') ? localStorage.getItem('theme') : null;
-
-    // Apply saved theme on initial load
     if (currentTheme) {
         document.body.classList.add(currentTheme);
         if (currentTheme === 'dark-theme') {
@@ -81,50 +236,51 @@ function initializeThemeSwitcher() {
              themeIcon.classList.add('fa-moon');
         }
     } else {
-        // Default icon if no theme saved
          themeIcon.classList.add('fa-moon');
     }
-
-    // Listener for theme switch toggle
-    themeSwitch.addEventListener('change', function(e) {
-        if (e.target.checked) {
-            document.body.classList.add('dark-theme');
-            localStorage.setItem('theme', 'dark-theme');
-            themeIcon.classList.remove('fa-moon');
-            themeIcon.classList.add('fa-sun');
-        } else {
-            document.body.classList.remove('dark-theme');
-            localStorage.setItem('theme', 'light-theme'); // Explicitly save light theme
-            themeIcon.classList.remove('fa-sun');
-            themeIcon.classList.add('fa-moon');
-        }
-    });
+    if (!themeSwitch.hasAttribute('data-listener-added')) {
+        themeSwitch.addEventListener('change', function(e) {
+            if (e.target.checked) {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark-theme');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('theme', 'light-theme');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        });
+        themeSwitch.setAttribute('data-listener-added', 'true');
+    }
 }
 
-// --- Authentication Check Logic (Moved from inline script) ---
 async function checkAuthStatus() {
     const authStatusElement = document.getElementById('authStatus');
-    if (!authStatusElement) return; // Element might not be loaded yet
-
+    if (!authStatusElement) {
+         console.warn("Auth status element not found.");
+         return; // Return a resolved promise
+    }
     try {
-        const response = await fetch('/api/session'); // Ensure this API endpoint is correct
+        const response = await fetch('/api/session');
         if (!response.ok) {
              throw new Error(`HTTP error! status: ${response.status}`);
         }
         const sessionData = await response.json();
-
         if (sessionData.loggedIn && sessionData.user) {
             authStatusElement.innerHTML = `
                 <span>Welcome, ${sessionData.user.username}!</span>
                 <a href="new-facility.html" class="btn btn-sm btn-success ms-2"><i class="fas fa-plus"></i> Add Facility</a>
                 <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
             `;
-            // Add event listener for logout *after* the element is added
             const logoutLink = document.getElementById('logoutLink');
              if (logoutLink) {
-                logoutLink.addEventListener('click', handleLogout);
+                 if (!logoutLink.hasAttribute('data-listener-added')) {
+                    logoutLink.addEventListener('click', handleLogout);
+                    logoutLink.setAttribute('data-listener-added', 'true');
+                 }
              }
-
         } else {
             authStatusElement.innerHTML = `
                 <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
@@ -138,14 +294,19 @@ async function checkAuthStatus() {
 
 async function handleLogout(event) {
     event.preventDefault();
+    console.log("Logout clicked");
     try {
-        const response = await fetch('/api/logout'); // Ensure this API endpoint is correct
+        const response = await fetch('/api/logout');
          if (!response.ok) {
              throw new Error(`HTTP error! status: ${response.status}`);
         }
         const result = await response.json();
         if (result.success) {
-            window.location.reload(); // Reload to reflect logout state
+            loadPageContent('index.html');
+            const authStatusElement = document.getElementById('authStatus');
+            if(authStatusElement) {
+                 authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
+            }
         } else {
             alert('Logout failed. Please try again.');
         }
