@@ -171,6 +171,31 @@
                 </div>
             </div>
 
+            <!-- Associated Documents Card -->
+            <div class="card mb-3">
+                <div class="card-header">Associated Documents</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="documentUploadInput" class="form-label">Upload New Document</label>
+                        <div class="input-group">
+                             <input type="file" class="form-control" id="documentUploadInput" aria-describedby="uploadDocumentButton">
+                             <button class="btn btn-outline-secondary" type="button" id="uploadDocumentButton"><i class="fas fa-upload"></i> Upload</button>
+                        </div>
+                         <div id="uploadStatusMessage" class="form-text mt-1"></div> <!-- For upload feedback -->
+                    </div>
+
+                    <hr>
+
+                    <h5>Uploaded Files</h5>
+                    <ul class="list-group" id="documentList">
+                        <!-- Document links will be loaded here by JavaScript -->
+                        <li class="list-group-item text-muted" id="noDocumentsMessage">No documents uploaded yet.</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- End Associated Documents Card -->
+
+
             <button type="submit" class="btn btn-primary w-100 mb-4">Update Facility</button> <!-- Changed Button Text -->
         </form>
     </div>

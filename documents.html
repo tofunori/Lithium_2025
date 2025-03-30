@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Documents - Lithium Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Navigation Placeholder -->
+        <div id="main-navigation" class="mb-4">
+             <nav class="navbar navbar-expand-lg navbar-light bg-light rounded p-2">
+                 <div class="container-fluid">
+                     <a class="navbar-brand" href="#">📄 Manage Documents</a>
+                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                         <span class="navbar-toggler-icon"></span>
+                     </button>
+                     <div class="collapse navbar-collapse" id="navbarNav">
+                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                             <li class="nav-item"><a class="nav-link" href="index.html">Map</a></li>
+                             <li class="nav-item"><a class="nav-link" href="facilities.html">Facilities</a></li>
+                             <li class="nav-item"><a class="nav-link" href="charts.html">Charts</a></li>
+                             <li class="nav-item"><a class="nav-link active" aria-current="page" href="documents.html">Documents</a></li> <!-- Added Documents Link -->
+                         </ul>
+                         <div id="authStatus" class="d-flex">
+                             <!-- Login/Logout status will be loaded here -->
+                         </div>
+                     </div>
+                 </div>
+             </nav>
+        </div>
+
+         <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
+         <div id="successMessage" class="alert alert-success d-none" role="alert"></div>
+
+        <div class="card mb-4">
+            <div class="card-header">Select Facility</div>
+            <div class="card-body">
+                 <label for="facilitySelect" class="form-label">Select a facility to manage its documents:</label>
+                 <select class="form-select" id="facilitySelect">
+                     <option selected disabled value="">-- Select a Facility --</option>
+                     <!-- Facility options will be loaded here by JavaScript -->
+                 </select>
+            </div>
+        </div>
+
+        <!-- Document Management Section (Initially hidden/disabled) -->
+        <div id="documentManagementSection" class="d-none">
+             <h4 id="selectedFacilityName">Documents for: </h4>
+             <hr>
+             <!-- Associated Documents Card -->
+             <div class="card mb-3">
+                 <div class="card-header">Associated Documents</div>
+                 <div class="card-body">
+                     <div class="mb-3">
+                         <label for="documentUploadInput" class="form-label">Upload New Document</label>
+                         <div class="input-group">
+                              <input type="file" class="form-control" id="documentUploadInput" aria-describedby="uploadDocumentButton">
+                              <button class="btn btn-outline-secondary" type="button" id="uploadDocumentButton"><i class="fas fa-upload"></i> Upload</button>
+                         </div>
+                          <div id="uploadStatusMessage" class="form-text mt-1"></div> <!-- For upload feedback -->
+                     </div>
+
+                     <hr>
+
+                     <h5>Uploaded Files</h5>
+                     <ul class="list-group" id="documentList">
+                         <!-- Document links will be loaded here by JavaScript -->
+                         <li class="list-group-item text-muted" id="noDocumentsMessage">Select a facility to see its documents.</li>
+                     </ul>
+                 </div>
+             </div>
+             <!-- End Associated Documents Card -->
+        </div>
+        <!-- End Document Management Section -->
+
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom Documents Page JS -->
+    <script src="js/documents.js"></script> <!-- Link to new JS file -->
+
+</body>
+</html>

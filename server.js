@@ -2,10 +2,45 @@ const express = require('express');
 const fs = require('fs').promises; // Use promise-based fs
 const path = require('path');
 const session = require('express-session'); // Import express-session
+const admin = require('firebase-admin'); // Firebase Admin SDK
+const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 
 const app = express();
 const port = 3000;
 const dataFilePath = path.join(__dirname, 'data', 'facilities.json');
+
+// --- Firebase Initialization ---
+// IMPORTANT: Replace with the actual path to your service account key file
+// Ensure this file is in your .gitignore and kept secure!
+const serviceAccountPath = path.join(__dirname, 'config', 'leafy-bulwark-442103-e7-firebase-adminsdk-fbsvc-31a9c3e896.json');
+const serviceAccount = require(serviceAccountPath);
+
+// IMPORTANT: Replace with your actual Firebase Storage bucket name
+const firebaseBucketName = 'leafy-bulwark-442103-e7.firebasestorage.app';
+
+try {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: firebaseBucketName
+    });
+    console.log('Firebase Admin SDK initialized successfully.');
+} catch (error) {
+    console.error('Error initializing Firebase Admin SDK:', error);
+    // Consider exiting the process if Firebase is essential
+    // process.exit(1);
+}
+const bucket = admin.storage().bucket();
+// --- End Firebase Initialization ---
+
+
+// --- Multer Configuration (for handling file uploads in memory) ---
+const storage = multer.memoryStorage(); // Store files in memory as Buffer objects
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // Limit file size (e.g., 10MB) - adjust as needed
+});
+// --- End Multer Configuration ---
+
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -15,7 +50,7 @@ app.use(express.static(path.join(__dirname)));
 
 // Session Configuration
 app.use(session({
-    secret: 'your-very-secret-key', // CHANGE THIS in a real app!
+    secret: 'your-very-secret-key', // CHANGE THIS in a real app! Use environment variable.
     resave: false,
     saveUninitialized: false, // Don't save sessions for non-logged-in users
     cookie: { secure: false } // Set to true if using HTTPS
@@ -24,6 +59,15 @@ app.use(session({
 // Simple hardcoded credentials (replace with database lookup in real app)
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'password';
+
+
+// Middleware function to check if user is authenticated
+function isAuthenticated(req, res, next) {
+    if (req.session.user) {
+        return next(); // User is logged in, proceed to the next middleware/route handler
+    }
+    res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
+}
 
 
 // --- API Endpoints ---
@@ -86,8 +130,6 @@ app.get('/api/facilities/:id', async (req, res) => {
         if (!facility) {
             return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
         }
-        // Return the whole feature object (including geometry) or just properties?
-        // Let's return the whole feature for now, frontend can decide what to use.
         res.json(facility);
     } catch (err) {
         console.error(`Error reading facility data for ID ${facilityId}:`, err);
@@ -98,45 +140,38 @@ app.get('/api/facilities/:id', async (req, res) => {
 // POST (create) a new facility - Protected
 app.post('/api/facilities', isAuthenticated, async (req, res) => {
     try {
-        // Basic validation (add more as needed)
         if (!req.body || !req.body.properties || !req.body.properties.name) {
             return res.status(400).json({ message: 'Missing required facility data (e.g., name).' });
         }
 
-        const newFacilityFeature = req.body; // Assuming the body is a valid GeoJSON Feature object
-
-        // Generate a simple ID from the name (can be improved)
+        const newFacilityFeature = req.body;
         const generatedId = newFacilityFeature.properties.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         if (!newFacilityFeature.properties.id) {
              newFacilityFeature.properties.id = generatedId;
         }
         const facilityId = newFacilityFeature.properties.id;
 
-        // Ensure geometry exists (even if basic)
         if (!newFacilityFeature.geometry) {
-            newFacilityFeature.geometry = { type: "Point", coordinates: [0, 0] }; // Default coordinates
+            newFacilityFeature.geometry = { type: "Point", coordinates: [0, 0] };
+        }
+        // Initialize documents array if not present
+        if (!newFacilityFeature.properties.documents) {
+            newFacilityFeature.properties.documents = [];
         }
 
-        // Read current data
         const data = await fs.readFile(dataFilePath, 'utf8');
         let facilitiesData = JSON.parse(data);
 
-        // Check if ID already exists
         const existingIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
         if (existingIndex !== -1) {
-            // If ID exists, maybe generate a slightly different one? Or return error.
-            // For now, return error.
             return res.status(409).json({ message: `Facility with ID ${facilityId} already exists.` });
         }
 
-        // Add the new facility feature
         facilitiesData.features.push(newFacilityFeature);
-
-        // Write updated data back
         await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
 
         console.log(`Facility ${facilityId} created successfully.`);
-        res.status(201).json(newFacilityFeature); // Respond with the created facility data
+        res.status(201).json(newFacilityFeature);
 
     } catch (err) {
         console.error('Error creating facility:', err);
@@ -145,46 +180,33 @@ app.post('/api/facilities', isAuthenticated, async (req, res) => {
 });
 
 
-// Middleware function to check if user is authenticated
-function isAuthenticated(req, res, next) {
-    if (req.session.user) {
-        return next(); // User is logged in, proceed to the next middleware/route handler
-    }
-    res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
-}
-
 // PUT (update) a specific facility by ID - Protected
-app.put('/api/facilities/:id', isAuthenticated, async (req, res) => { // Added isAuthenticated middleware
+app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
     const facilityId = req.params.id;
-    // Assuming the request body contains the updated 'properties' object
     const updatedProperties = req.body;
 
     try {
-        // Read the existing data
         const data = await fs.readFile(dataFilePath, 'utf8');
         let facilitiesData = JSON.parse(data);
-
-        // Find the index of the facility to update
         const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
 
         if (facilityIndex === -1) {
             return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
         }
 
-        // Update the properties of the found facility
-        // Merge existing properties with updated ones to avoid losing unchanged fields
-        // Ensure the ID remains unchanged even if sent in the body
+        // Ensure documents array exists before merging
+        const existingDocuments = facilitiesData.features[facilityIndex].properties.documents || [];
+
         facilitiesData.features[facilityIndex].properties = {
-            ...facilitiesData.features[facilityIndex].properties, // Keep existing properties
-            ...updatedProperties,                                // Apply updates
-            id: facilityId                                       // Ensure ID is not overwritten
+            ...facilitiesData.features[facilityIndex].properties,
+            ...updatedProperties,
+            id: facilityId, // Ensure ID is not overwritten
+            documents: updatedProperties.documents || existingDocuments // Preserve documents if not included in update
         };
 
-        // Write the updated data back to the file
-        await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8'); // Pretty print JSON
+        await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
 
         console.log(`Facility ${facilityId} updated successfully.`);
-        // Send back the updated facility properties
         res.json(facilitiesData.features[facilityIndex].properties);
 
     } catch (err) {
@@ -192,6 +214,115 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => { // Added i
         res.status(500).send(`Error updating facility ${facilityId}`);
     }
 });
+
+
+// --- Document Upload Endpoints ---
+
+// POST Upload a document for a specific facility
+// Frontend should send file under the field name 'document'
+app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('document'), async (req, res) => {
+    const facilityId = req.params.id;
+
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded.' });
+    }
+
+    const originalFilename = req.file.originalname;
+    const destination = `${facilityId}/${originalFilename}`; // Path within the bucket
+
+    try {
+        // --- Upload to Firebase Storage ---
+        const fileUpload = bucket.file(destination);
+        await fileUpload.save(req.file.buffer, {
+            metadata: { contentType: req.file.mimetype }
+        });
+        console.log(`File ${originalFilename} uploaded to Firebase Storage at ${destination}`);
+
+        // --- Update facilities.json ---
+        const data = await fs.readFile(dataFilePath, 'utf8');
+        let facilitiesData = JSON.parse(data);
+        const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
+
+        if (facilityIndex === -1) {
+            // Should not happen if facility exists, but good practice to check
+            // Optionally delete the uploaded file from storage if facility not found
+            // await bucket.file(destination).delete();
+            return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
+        }
+
+        // Ensure the documents array exists
+        if (!facilitiesData.features[facilityIndex].properties.documents) {
+            facilitiesData.features[facilityIndex].properties.documents = [];
+        }
+
+        // Add document metadata (avoid duplicates if needed)
+        const existingDocIndex = facilitiesData.features[facilityIndex].properties.documents.findIndex(doc => doc.filename === originalFilename);
+        const newDocMetadata = {
+            filename: originalFilename,
+            storagePath: destination, // Store the path used in Firebase Storage
+            uploadedAt: new Date().toISOString(),
+            mimetype: req.file.mimetype,
+            size: req.file.size
+        };
+
+        if (existingDocIndex > -1) {
+            // Replace existing entry if filename matches
+            facilitiesData.features[facilityIndex].properties.documents[existingDocIndex] = newDocMetadata;
+            console.log(`Updated metadata for existing document: ${originalFilename}`);
+        } else {
+            // Add new entry
+            facilitiesData.features[facilityIndex].properties.documents.push(newDocMetadata);
+            console.log(`Added metadata for new document: ${originalFilename}`);
+        }
+
+
+        // Write updated data back
+        await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
+
+        // Respond with the updated documents list for the facility
+        res.status(201).json({
+            message: 'File uploaded successfully',
+            documents: facilitiesData.features[facilityIndex].properties.documents
+        });
+
+    } catch (err) {
+        console.error(`Error uploading file for facility ${facilityId}:`, err);
+        res.status(500).json({ message: 'Error uploading file.' });
+    }
+});
+
+// GET a temporary signed URL to download/view a specific document
+app.get('/api/facilities/:id/documents/:filename/url', isAuthenticated, async (req, res) => {
+    const facilityId = req.params.id;
+    const filename = req.params.filename;
+    const storagePath = `${facilityId}/${filename}`; // Path within the bucket
+
+    try {
+        // Check if file exists in storage (optional but good practice)
+        const [exists] = await bucket.file(storagePath).exists();
+        if (!exists) {
+            console.warn(`Attempt to access non-existent file: ${storagePath}`);
+            return res.status(404).json({ message: 'File not found in storage.' });
+        }
+
+        // Generate a signed URL for reading the file
+        const options = {
+            version: 'v4', // Recommended version
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
+        };
+
+        const [url] = await bucket.file(storagePath).getSignedUrl(options);
+        console.log(`Generated signed URL for ${storagePath}`);
+        res.json({ url });
+
+    } catch (err) {
+        console.error(`Error generating signed URL for ${storagePath}:`, err);
+        res.status(500).json({ message: 'Error generating download URL.' });
+    }
+});
+
+// --- End Document Upload Endpoints ---
 
 
 // --- Start Server ---

@@ -347,7 +347,16 @@
         ],
         "feedstock": "End-of-life lithium-ion batteries",
         "products": "Black mass",
-        "fundingSource": "DOE grant, private investment"
+        "fundingSource": "DOE grant, private investment",
+        "documents": [
+          {
+            "filename": "COR20231205PresentationRedwood.pdf",
+            "storagePath": "cirba-ohio/COR20231205PresentationRedwood.pdf",
+            "uploadedAt": "2025-03-30T21:31:20.380Z",
+            "mimetype": "application/pdf",
+            "size": 2093489
+          }
+        ]
       },
       "geometry": {
         "type": "Point",
