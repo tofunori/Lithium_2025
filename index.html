@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lithium Battery Recycling Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-7"> <!-- Adjusted column size -->
+                    <h1>Lithium Battery Recycling in North America</h1>
+                    <p class="text-muted">Interactive dashboard of recycling facilities, technologies, and capacity</p>
+                </div>
+                <div class="col-md-5 text-end"> <!-- Adjusted column size -->
+                    <span id="authStatus" class="me-3"></span> <!-- Placeholder for Login/Logout -->
+                    <button class="btn btn-outline-primary me-2">About</button>
+                    <button class="btn btn-outline-secondary">Methodology</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <div class="icon text-primary">
+                        <i class="fas fa-industry"></i>
+                    </div>
+                    <div class="number total-facilities">20</div>
+                    <div class="label">Total Facilities</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <div class="icon text-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="number operating-facilities">11</div>
+                    <div class="label">Operating</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <div class="icon text-warning">
+                        <i class="fas fa-hard-hat"></i>
+                    </div>
+                    <div class="number construction-facilities">5</div>
+                    <div class="label">Under Construction</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <div class="icon text-info">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="number planned-facilities">4</div>
+                    <div class="label">Planned</div>
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="row">
+            <div class="col-12"> <!-- Changed from col-md-8 -->
+                <div class="map-container" id="map-container">
+                    <div id="map"></div>
+                    
+                        <h6 class="mb-2">Facility Status</h6>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #4CAF50;"></div>
+                            <span>Operating</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #FFC107;"></div>
+                            <span>Under Construction</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #2196F3;"></div>
+                            <span>Planned</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #9C27B0;"></div>
+                            <span>Pilot</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- End of first row (Map only) -->
+
+        <div class="row mt-4"> <!-- Start new row for List + Capacity Chart -->
+            <div class="col-md-4"> <!-- List Column -->
+                <div class="facilities-list">
+                    <div class="tabs-container">
+                        <button class="tab-button active" data-filter="all">All</button>
+                        <button class="tab-button" data-filter="operating">Operating</button>
+                        <button class="tab-button" data-filter="construction">Construction</button>
+                        <button class="tab-button" data-filter="planned">Planned</button>
+                    </div>
+                    
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="facilitySearch" placeholder="Search facilities...">
+                    </div>
+                    
+                    <div id="facilitiesList">
+                        <!-- Quick links to created facility pages -->
+                        <div class="facility-item licycle-arizona">
+                            <a href="facilities/licycle-arizona.html">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="mb-0">Li-Cycle Arizona Spoke</h6>
+                                        <small class="text-muted">Li-Cycle, Gilbert, AZ</small>
+                                    </div>
+                                    <span class="status-badge status-operating">Operating</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="facility-item licycle-alabama">
+                            <a href="facilities/licycle-alabama.html">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="mb-0">Li-Cycle Alabama Spoke</h6>
+                                        <small class="text-muted">Li-Cycle, Tuscaloosa, AL</small>
+                                    </div>
+                                    <span class="status-badge status-operating">Operating</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="facility-item licycle-ontario">
+                            <a href="facilities/licycle-ontario.html">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="mb-0">Li-Cycle Ontario Spoke</h6>
+                                        <small class="text-muted">Li-Cycle, Kingston, Ontario</small>
+                                    </div>
+                                    <span class="status-badge status-operating">Operating</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="facility-item licycle-ohio">
+                            <a href="facilities/licycle-ohio.html">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="mb-0">Li-Cycle Ohio Spoke</h6>
+                                        <small class="text-muted">Li-Cycle, Warren, OH</small>
+                                    </div>
+                                    <span class="status-badge status-construction">Under Construction</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="facility-item licycle-rochester">
+                            <a href="facilities/licycle-rochester.html">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="mb-0">Li-Cycle North American Hub</h6>
+                                        <small class="text-muted">Li-Cycle, Rochester, NY</small>
+                                    </div>
+                                    <span class="status-badge status-planned">Planned</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- End List Column -->
+
+            <div class="col-md-8"> <!-- Capacity Chart Column -->
+                 <div class="card"> <!-- Removed mt-4 as row has it -->
+                    <div class="card-header">
+                        <h5>Capacity by Status (tonnes per year)</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="capacityChart"></canvas>
+                    </div>
+                </div>
+            </div> <!-- End Capacity Chart Column -->
+        </div> <!-- End List + Capacity Chart Row -->
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recycling Technologies Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="technologiesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Geographic Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="regionsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Dashboard JS -->
+    <script src="js/dashboard.js"></script>
+
+    <script>
+        // --- Authentication Check ---
+        async function checkAuthStatus() {
+            const authStatusElement = document.getElementById('authStatus');
+            if (!authStatusElement) return;
+
+            try {
+                const response = await fetch('/api/session');
+                const sessionData = await response.json();
+
+                if (sessionData.loggedIn) {
+                    authStatusElement.innerHTML = `
+                        <span>Welcome, ${sessionData.user.username}!</span>
+                        <a href="new-facility.html" class="btn btn-sm btn-success ms-2"><i class="fas fa-plus"></i> Add Facility</a>
+                        <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+                    `;
+                    // Add event listener for logout
+                    document.getElementById('logoutLink').addEventListener('click', handleLogout);
+                } else {
+                    authStatusElement.innerHTML = `
+                        <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                authStatusElement.innerHTML = '<span class="text-danger">Session check failed</span>';
+            }
+        }
+
+        async function handleLogout(event) {
+            event.preventDefault();
+            try {
+                const response = await fetch('/api/logout');
+                const result = await response.json();
+                if (result.success) {
+                    // Reload the page or update UI to reflect logout
+                    window.location.reload();
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('An error occurred during logout.');
+            }
+        }
+
+        // Check auth status when the page loads
+        document.addEventListener('DOMContentLoaded', checkAuthStatus);
+    </script>
+</body>
+</html>

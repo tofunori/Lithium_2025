@@ -1,0 +1,16 @@
+{
+  "name": "lithium-recycling-dashboard",
+  "version": "1.0.0",
+  "description": "This interactive dashboard provides a comprehensive overview of lithium battery recycling facilities across North America. The dashboard includes an interactive map, detailed facility information, and data visualizations to help understand the current state of the industry.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-session": "^1.18.1"
+  }
+}

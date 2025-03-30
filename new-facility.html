@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Facility - Lithium Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3>Add New Facility</h3>
+            <a href="index.html" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Cancel</a>
+        </div>
+
+        <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
+        <div id="successMessage" class="alert alert-success d-none" role="alert"></div>
+
+        <form id="newFacilityForm">
+            <div class="card mb-3">
+                <div class="card-header">Basic Information</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="facilityName" class="form-label">Facility Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="facilityName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="facilityId" class="form-label">Facility ID (Optional - auto-generated if blank)</label>
+                            <input type="text" class="form-control" id="facilityId" placeholder="e.g., company-location">
+                             <div class="form-text">Use lowercase letters, numbers, and hyphens only.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="company" class="form-label">Company</label>
+                            <input type="text" class="form-control" id="company">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status">
+                                <option value="Operating" selected>Operating</option>
+                                <option value="Under Construction">Under Construction</option>
+                                <option value="Planned">Planned</option>
+                                <option value="Pilot">Pilot</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="address" class="form-label">Address</label>
+                            <input type="text" class="form-control" id="address" placeholder="Street, City, State/Province, Country">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="region" class="form-label">Region</label>
+                            <input type="text" class="form-control" id="region" placeholder="e.g., Southeast, Midwest, Canada">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" class="form-control" id="country" value="USA">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <div class="card mb-3">
+                <div class="card-header">Location (Coordinates)</div>
+                <div class="card-body">
+                     <div class="row g-3">
+                         <div class="col-md-6">
+                            <label for="longitude" class="form-label">Longitude <span class="text-danger">*</span></label>
+                            <input type="number" step="any" class="form-control" id="longitude" required placeholder="-87.611">
+                         </div>
+                         <div class="col-md-6">
+                             <label for="latitude" class="form-label">Latitude <span class="text-danger">*</span></label>
+                            <input type="number" step="any" class="form-control" id="latitude" required placeholder="33.232">
+                         </div>
+                     </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">Technical Details</div>
+                <div class="card-body">
+                     <div class="row g-3">
+                         <div class="col-md-6">
+                            <label for="capacity" class="form-label">Processing Capacity</label>
+                            <input type="text" class="form-control" id="capacity" placeholder="e.g., 10,000 tonnes per year">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="technology" class="form-label">Technology</label>
+                            <input type="text" class="form-control" id="technology" placeholder="e.g., Hydrometallurgical process">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="yearStarted" class="form-label">Year Started / Planned</label>
+                            <input type="number" class="form-control" id="yearStarted" placeholder="e.g., 2023">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="size" class="form-label">Facility Size</label>
+                            <input type="text" class="form-control" id="size" placeholder="e.g., 150,000 square feet">
+                        </div>
+                         <div class="col-12">
+                            <label for="feedstock" class="form-label">Feedstock</label>
+                            <input type="text" class="form-control" id="feedstock" placeholder="e.g., Manufacturing scrap and end-of-life batteries">
+                        </div>
+                         <div class="col-12">
+                            <label for="products" class="form-label">Output Products</label>
+                            <input type="text" class="form-control" id="products" placeholder="e.g., Black mass, Cathode materials">
+                        </div>
+                         <div class="col-12">
+                             <label for="technologyDetails" class="form-label">Technology Details</label>
+                             <textarea class="form-control" id="technologyDetails" rows="3"></textarea>
+                         </div>
+                     </div>
+                </div>
+            </div>
+
+             <div class="card mb-3">
+                <div class="card-header">Description & Media</div>
+                <div class="card-body">
+                     <div class="row g-3">
+                         <div class="col-12">
+                            <label for="description" class="form-label">Facility Description</label>
+                            <textarea class="form-control" id="description" rows="5"></textarea>
+                        </div>
+                         <div class="col-md-6">
+                            <label for="website" class="form-label">Website URL</label>
+                            <input type="url" class="form-control" id="website" placeholder="https://...">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="companyLogo" class="form-label">Company Logo URL</label>
+                            <input type="text" class="form-control" id="companyLogo" placeholder="e.g., images/logos/company.png">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="facilityImage" class="form-label">Facility Image URL</label>
+                            <input type="text" class="form-control" id="facilityImage" placeholder="e.g., images/facilities/facility.jpg">
+                        </div>
+                         <div class="col-md-6">
+                            <label for="fundingSource" class="form-label">Funding Source</label>
+                            <input type="text" class="form-control" id="fundingSource" placeholder="e.g., Private investment, DOE grant">
+                        </div>
+                         <div class="col-12">
+                             <label for="timeline" class="form-label">Timeline (JSON format)</label>
+                             <textarea class="form-control" id="timeline" rows="4" placeholder='[{"year": "2023", "event": "Construction started"}, {"year": "2024", "event": "Operations begin"}]'></textarea>
+                             <div class="form-text">Enter as a JSON array of objects, each with "year" and "event" keys.</div>
+                         </div>
+                     </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mb-4">Add Facility</button>
+        </form>
+    </div>
+
+    <script>
+        // Check if user is logged in - redirect if not
+        async function checkLogin() {
+            try {
+                const response = await fetch('/api/session');
+                const sessionData = await response.json();
+                if (!sessionData.loggedIn) {
+                    window.location.href = 'login.html'; // Redirect to login if not authenticated
+                }
+            } catch (error) {
+                console.error('Error checking session status:', error);
+                // Optionally handle error, maybe redirect to login anyway
+                 window.location.href = 'login.html';
+            }
+        }
+
+        document.getElementById('newFacilityForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const errorMessageDiv = document.getElementById('errorMessage');
+            const successMessageDiv = document.getElementById('successMessage');
+            errorMessageDiv.classList.add('d-none');
+            successMessageDiv.classList.add('d-none');
+
+            // --- Gather data from form ---
+            const properties = {
+                name: document.getElementById('facilityName').value,
+                id: document.getElementById('facilityId').value || undefined, // Let backend generate if blank
+                company: document.getElementById('company').value || undefined,
+                address: document.getElementById('address').value || undefined,
+                status: document.getElementById('status').value,
+                capacity: document.getElementById('capacity').value || undefined,
+                technology: document.getElementById('technology').value || undefined,
+                website: document.getElementById('website').value || undefined,
+                yearStarted: document.getElementById('yearStarted').value || undefined, // Handle as string/number? API expects string for now
+                region: document.getElementById('region').value || undefined,
+                country: document.getElementById('country').value || undefined,
+                companyLogo: document.getElementById('companyLogo').value || undefined,
+                facilityImage: document.getElementById('facilityImage').value || undefined,
+                feedstock: document.getElementById('feedstock').value || undefined,
+                products: document.getElementById('products').value || undefined,
+                fundingSource: document.getElementById('fundingSource').value || undefined,
+                size: document.getElementById('size').value || undefined,
+                // Add other simple fields here: investment, evEquivalent, rdCapabilities, companyDescription
+                technologyDetails: document.getElementById('technologyDetails').value || undefined,
+                description: document.getElementById('description').value || undefined,
+            };
+
+             // Handle potentially missing yearStarted if status is Planned
+             if (properties.status === 'Planned' && properties.yearStarted) {
+                 properties.yearPlanned = properties.yearStarted;
+                 delete properties.yearStarted;
+             } else if (properties.status !== 'Planned') {
+                 delete properties.yearPlanned; // Ensure yearPlanned is not set if not Planned status
+             }
+
+
+            // Handle Timeline JSON
+            let timelineArray = [];
+            const timelineInput = document.getElementById('timeline').value.trim();
+            if (timelineInput) {
+                try {
+                    timelineArray = JSON.parse(timelineInput);
+                    if (!Array.isArray(timelineArray)) throw new Error("Timeline must be a JSON array.");
+                    // Optional: Add validation for objects inside array (have year/event keys)
+                } catch (e) {
+                    errorMessageDiv.textContent = `Invalid Timeline JSON: ${e.message}`;
+                    errorMessageDiv.classList.remove('d-none');
+                    return;
+                }
+            }
+            properties.timeline = timelineArray.length > 0 ? timelineArray : undefined;
+
+
+            // Handle Geometry
+            const longitude = parseFloat(document.getElementById('longitude').value);
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            if (isNaN(longitude) || isNaN(latitude)) {
+                 errorMessageDiv.textContent = 'Valid Longitude and Latitude are required.';
+                 errorMessageDiv.classList.remove('d-none');
+                 return;
+            }
+            const geometry = {
+                type: "Point",
+                coordinates: [longitude, latitude]
+            };
+
+            // Construct the full GeoJSON Feature object
+            const newFacilityFeature = {
+                type: "Feature",
+                properties: properties,
+                geometry: geometry
+            };
+
+            // --- Send data to API ---
+            try {
+                const response = await fetch('/api/facilities', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newFacilityFeature),
+                });
+
+                const result = await response.json();
+
+                if (response.status === 201) { // Check for Created status
+                    successMessageDiv.textContent = `Facility "${result.properties.name}" created successfully! Redirecting...`;
+                    successMessageDiv.classList.remove('d-none');
+                    // Optionally clear form
+                    // document.getElementById('newFacilityForm').reset();
+                    setTimeout(() => {
+                        window.location.href = 'index.html'; // Redirect after a short delay
+                    }, 2000);
+                } else {
+                    errorMessageDiv.textContent = result.message || `Error creating facility (Status: ${response.status}).`;
+                    errorMessageDiv.classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('Error submitting new facility:', error);
+                errorMessageDiv.textContent = 'An unexpected error occurred. Please try again.';
+                errorMessageDiv.classList.remove('d-none');
+            }
+        });
+
+         // Initial check
+         document.addEventListener('DOMContentLoaded', checkLogin);
+    </script>
+</body>
+</html>
