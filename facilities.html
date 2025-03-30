@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facilities List - Lithium Recycling</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Navigation Placeholder -->
+        <div id="main-navigation" class="mb-4">
+             <nav class="navbar navbar-expand-lg navbar-light bg-light rounded p-2">
+                 <div class="container-fluid">
+                     <a class="navbar-brand" href="#">📋 Facilities List</a>
+                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                         <span class="navbar-toggler-icon"></span>
+                     </button>
+                     <div class="collapse navbar-collapse" id="navbarNav">
+                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                             <li class="nav-item">
+                                 <a class="nav-link" href="index.html">Map</a>
+                             </li>
+                             <li class="nav-item">
+                                 <a class="nav-link active" aria-current="page" href="facilities.html">Facilities</a>
+                             </li>
+                             <li class="nav-item">
+                                 <a class="nav-link" href="charts.html">Charts</a>
+                             </li>
+                         </ul>
+                         <div id="authStatus" class="d-flex">
+                             <!-- Login/Logout status will be loaded here -->
+                         </div>
+                     </div>
+                 </div>
+             </nav>
+        </div>
+
+        <!-- Facilities List Section -->
+        <div class="row">
+            <div class="col-12">
+                 <div class="facilities-list" style="max-height: none; overflow-y: visible;"> <!-- Adjust style if needed -->
+                    <div class="tabs-container">
+                        <button class="tab-button active" data-filter="all">All</button>
+                        <button class="tab-button" data-filter="operating">Operating</button>
+                        <button class="tab-button" data-filter="construction">Construction</button>
+                        <button class="tab-button" data-filter="planned">Planned</button>
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="facilitySearch" placeholder="Search facilities...">
+                    </div>
+
+                    <div id="facilitiesList">
+                        <!-- Facility items will be loaded here by JavaScript -->
+                        <p class="text-center text-muted">Loading facilities...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom Facilities Page JS -->
+    <script src="js/facilities-page.js"></script>
+     <!-- REMOVED Inline Auth Script -->
+</body>
+</html>

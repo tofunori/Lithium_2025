@@ -27,57 +27,40 @@
     <div class="dashboard-container">
         <div class="dashboard-header">
             <div class="row align-items-center">
-                <div class="col-md-7"> <!-- Adjusted column size -->
+                <div class="col-md-6"> <!-- Adjusted column size -->
                     <h1>Lithium Battery Recycling in North America</h1>
-                    <p class="text-muted">Interactive dashboard of recycling facilities, technologies, and capacity</p>
+                    <p class="text-muted">Interactive Map of Recycling Facilities</p>
                 </div>
-                <div class="col-md-5 text-end"> <!-- Adjusted column size -->
-                    <span id="authStatus" class="me-3"></span> <!-- Placeholder for Login/Logout -->
-                    <button class="btn btn-outline-primary me-2">About</button>
-                    <button class="btn btn-outline-secondary">Methodology</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <div class="icon text-primary">
-                        <i class="fas fa-industry"></i>
-                    </div>
-                    <div class="number total-facilities">20</div>
-                    <div class="label">Total Facilities</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <div class="icon text-success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="number operating-facilities">11</div>
-                    <div class="label">Operating</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <div class="icon text-warning">
-                        <i class="fas fa-hard-hat"></i>
-                    </div>
-                    <div class="number construction-facilities">5</div>
-                    <div class="label">Under Construction</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <div class="icon text-info">
-                        <i class="fas fa-clipboard-list"></i>
-                    </div>
-                    <div class="number planned-facilities">4</div>
-                    <div class="label">Planned</div>
+                <div class="col-md-6"> <!-- Adjusted column size -->
+                     <!-- Navigation Menu -->
+                    <nav class="navbar navbar-expand-lg navbar-light bg-light rounded p-2 float-end">
+                        <div class="container-fluid">
+                            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"></span>
+                            </button>
+                            <div class="collapse navbar-collapse" id="navbarNav">
+                                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" aria-current="page" href="index.html">Map</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="facilities.html">Facilities</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="charts.html">Charts</a>
+                                    </li>
+                                </ul>
+                                <div id="authStatus" class="d-flex align-items-center ms-3">
+                                    <!-- Login/Logout status will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
                 </div>
             </div>
         </div>
         
+        <!-- Stats Cards Row REMOVED -->
         
         <div class="row">
             <div class="col-12"> <!-- Changed from col-md-8 -->
@@ -112,118 +95,11 @@
             </div>
         </div> <!-- End of first row (Map only) -->
 
-        <div class="row mt-4"> <!-- Start new row for List + Capacity Chart -->
-            <div class="col-md-4"> <!-- List Column -->
-                <div class="facilities-list">
-                    <div class="tabs-container">
-                        <button class="tab-button active" data-filter="all">All</button>
-                        <button class="tab-button" data-filter="operating">Operating</button>
-                        <button class="tab-button" data-filter="construction">Construction</button>
-                        <button class="tab-button" data-filter="planned">Planned</button>
-                    </div>
-                    
-                    <div class="input-group mb-3">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" id="facilitySearch" placeholder="Search facilities...">
-                    </div>
-                    
-                    <div id="facilitiesList">
-                        <!-- Quick links to created facility pages -->
-                        <div class="facility-item licycle-arizona">
-                            <a href="facilities/licycle-arizona.html">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="mb-0">Li-Cycle Arizona Spoke</h6>
-                                        <small class="text-muted">Li-Cycle, Gilbert, AZ</small>
-                                    </div>
-                                    <span class="status-badge status-operating">Operating</span>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="facility-item licycle-alabama">
-                            <a href="facilities/licycle-alabama.html">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="mb-0">Li-Cycle Alabama Spoke</h6>
-                                        <small class="text-muted">Li-Cycle, Tuscaloosa, AL</small>
-                                    </div>
-                                    <span class="status-badge status-operating">Operating</span>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="facility-item licycle-ontario">
-                            <a href="facilities/licycle-ontario.html">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="mb-0">Li-Cycle Ontario Spoke</h6>
-                                        <small class="text-muted">Li-Cycle, Kingston, Ontario</small>
-                                    </div>
-                                    <span class="status-badge status-operating">Operating</span>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="facility-item licycle-ohio">
-                            <a href="facilities/licycle-ohio.html">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="mb-0">Li-Cycle Ohio Spoke</h6>
-                                        <small class="text-muted">Li-Cycle, Warren, OH</small>
-                                    </div>
-                                    <span class="status-badge status-construction">Under Construction</span>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="facility-item licycle-rochester">
-                            <a href="facilities/licycle-rochester.html">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="mb-0">Li-Cycle North American Hub</h6>
-                                        <small class="text-muted">Li-Cycle, Rochester, NY</small>
-                                    </div>
-                                    <span class="status-badge status-planned">Planned</span>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div> <!-- End List Column -->
+        <!-- Facilities List Row REMOVED -->
 
-            <div class="col-md-8"> <!-- Capacity Chart Column -->
-                 <div class="card"> <!-- Removed mt-4 as row has it -->
-                    <div class="card-header">
-                        <h5>Capacity by Status (tonnes per year)</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="capacityChart"></canvas>
-                    </div>
-                </div>
-            </div> <!-- End Capacity Chart Column -->
-        </div> <!-- End List + Capacity Chart Row -->
+        <!-- Charts Row REMOVED -->
 
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Recycling Technologies Distribution</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="technologiesChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Geographic Distribution</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="regionsChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </div> <!-- End dashboard-container -->
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>

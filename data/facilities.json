@@ -34,7 +34,9 @@
         ],
         "feedstock": "Manufacturing scrap and end-of-life batteries",
         "products": "Black mass",
-        "fundingSource": "Private investment"
+        "fundingSource": "Private investment",
+        "size": "Not specified",
+        "technologyDetails": "Details about Generation 3 submerged shredding technology."
       },
       "geometry": {
         "type": "Point",

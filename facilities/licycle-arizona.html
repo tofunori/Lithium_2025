@@ -36,13 +36,36 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-             <a href="../index.html" class="btn btn-outline-primary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
-             <div>
-                 <button id="editButton" class="btn btn-secondary"><i class="fas fa-edit"></i> Edit</button>
-                 <button id="saveButton" class="btn btn-success"><i class="fas fa-save"></i> Save Changes</button>
-             </div>
+        <!-- Navigation Placeholder -->
+        <div id="main-navigation" class="mb-4">
+             <nav class="navbar navbar-expand-lg navbar-light bg-light rounded p-2">
+                 <div class="container-fluid">
+                     <a class="navbar-brand" href="../index.html">Lithium Recycling Dashboard</a>
+                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                         <span class="navbar-toggler-icon"></span>
+                     </button>
+                     <div class="collapse navbar-collapse" id="navbarNav">
+                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                             <li class="nav-item"><a class="nav-link" href="../index.html">Map</a></li>
+                             <li class="nav-item"><a class="nav-link" href="../facilities.html">Facilities</a></li>
+                             <li class="nav-item"><a class="nav-link" href="../charts.html">Charts</a></li>
+                         </ul>
+                         <div id="authStatus" class="d-flex align-items-center">
+                             <!-- Login/Logout status will be loaded here -->
+                         </div>
+                     </div>
+                 </div>
+             </nav>
         </div>
+
+         <div class="d-flex justify-content-between align-items-center mb-4">
+             <h3 id="pageTitle">Facility Details</h3> <!-- Placeholder Title -->
+             <div>
+                 <!-- Edit button now links to the edit page -->
+                 <a href="#" id="editLink" class="btn btn-secondary" style="display: none;"><i class="fas fa-edit"></i> Edit</a>
+                 <!-- Save button is removed as saving happens on edit page -->
+             </div>
+         </div>
 
         <!-- Header - Content set dynamically -->
         <div id="facilityHeader" class="facility-header">
@@ -58,7 +81,7 @@
                 <!-- Overview - Content set dynamically -->
                 <div class="facility-detail-card">
                     <h3>Facility Overview</h3>
-                    <div id="facilityDescription" class="editable-section">Loading description...</div>
+                    <div id="facilityDescription">Loading description...</div> <!-- Removed editable-section -->
                 </div>
 
                 <div class="row mt-4">
@@ -66,7 +89,7 @@
                          <!-- Specs - Content set dynamically -->
                         <div class="facility-detail-card">
                             <h4>Technical Specifications</h4>
-                            <ul id="techSpecsList" class="list-unstyled editable-section">
+                            <ul id="techSpecsList" class="list-unstyled"> <!-- Removed editable-section -->
                                 <li><strong>Size:</strong> <span data-key="size">Loading...</span></li>
                                 <li><strong>Processing Capacity:</strong> <span data-key="capacity">Loading...</span></li>
                                 <li><strong>Technology:</strong> <span data-key="technology">Loading...</span></li>
@@ -94,7 +117,7 @@
                 <!-- Timeline - Content set dynamically -->
                 <div class="facility-detail-card mt-4">
                     <h4>Development Timeline</h4>
-                    <div id="facilityTimeline" class="timeline editable-section">
+                    <div id="facilityTimeline" class="timeline"> <!-- Removed editable-section -->
                         <!-- Timeline items will be added here -->
                         <p>Loading timeline...</p>
                     </div>
@@ -124,7 +147,7 @@
                 <!-- Processing Tech - Content set dynamically -->
                  <div class="facility-detail-card mt-4">
                     <h4>Processing Technology</h4>
-                    <div id="technologyDescription" class="editable-section">Loading technology details...</div>
+                    <div id="technologyDescription">Loading technology details...</div> <!-- Removed editable-section -->
                 </div>
 
                 <!-- Related Facilities - Kept static for now -->
@@ -180,7 +203,8 @@
             statusBadge.className = `status-badge ${getStatusClass(props.status)}`; // Update class
             const headerDiv = document.getElementById('facilityHeader');
              if (props.facilityImage && props.facilityImage !== 'images/facilities/default.jpg') { // Check for valid image
-                 headerDiv.style.backgroundImage = `url('../${props.facilityImage}')`;
+                 // Path from JSON is relative to root, prepend /
+                 headerDiv.style.backgroundImage = `url('/${props.facilityImage}')`;
              } else {
                   headerDiv.style.backgroundImage = 'none'; // Or a default background
                   headerDiv.style.backgroundColor = '#f0f0f0'; // Example default
@@ -261,119 +285,7 @@
 
         }
 
-        // --- Edit Mode Functions ---
-        function enableEditMode() {
-            console.log("Enabling edit mode...");
-            document.getElementById('editButton').style.display = 'none';
-            document.getElementById('saveButton').style.display = 'inline-block';
-
-            // Make sections editable (example using contenteditable)
-            document.querySelectorAll('.editable-section').forEach(el => {
-                 // For simple text divs:
-                 if (el.tagName === 'DIV' && el.id === 'facilityDescription') {
-                     el.contentEditable = true;
-                     el.classList.add('editable');
-                 }
-                 // For lists like Tech Specs: make spans editable
-                 else if (el.tagName === 'UL' && el.id === 'techSpecsList') {
-                     el.querySelectorAll('span[data-key]').forEach(span => {
-                         span.contentEditable = true;
-                         span.classList.add('editable');
-                     });
-                 }
-                 // Add more complex handling for timeline, etc. if needed
-                 // For now, keep timeline and tech description simple
-                 else if (el.id === 'facilityTimeline' || el.id === 'technologyDescription') {
-                      el.contentEditable = true;
-                      el.classList.add('editable');
-                 }
-            });
-        }
-
-        function disableEditMode() {
-            console.log("Disabling edit mode...");
-            document.getElementById('saveButton').style.display = 'none';
-            document.getElementById('editButton').style.display = 'inline-block';
-
-            // Make sections non-editable
-             document.querySelectorAll('.editable-section').forEach(el => {
-                 if (el.tagName === 'DIV') {
-                     el.contentEditable = false;
-                     el.classList.remove('editable');
-                 } else if (el.tagName === 'UL') {
-                      el.querySelectorAll('span[data-key]').forEach(span => {
-                         span.contentEditable = false;
-                         span.classList.remove('editable');
-                     });
-                 }
-            });
-             // Also remove from timeline/tech description divs
-             document.getElementById('facilityTimeline').contentEditable = false;
-             document.getElementById('facilityTimeline').classList.remove('editable');
-             document.getElementById('technologyDescription').contentEditable = false;
-             document.getElementById('technologyDescription').classList.remove('editable');
-        }
-
-        // --- Save Changes Function ---
-        async function saveChanges() {
-            console.log("Saving changes...");
-
-            // 1. Gather data from editable fields
-            const updatedProps = { ...currentFacilityData.properties }; // Start with current props
-
-            // Facility Description
-            updatedProps.description = document.getElementById('facilityDescription').innerHTML; // Use innerHTML if rich text allowed
-
-            // Tech Specs
-            const techSpecsList = document.getElementById('techSpecsList');
-            techSpecsList.querySelectorAll('span[data-key]').forEach(span => {
-                const key = span.getAttribute('data-key');
-                updatedProps[key] = span.textContent;
-            });
-
-            // Timeline (More complex: need to parse the structure back into an array)
-            // For simplicity, let's skip saving timeline edits for now.
-            // updatedProps.timeline = parseTimelineFromDOM();
-
-             // Technology Description
-             updatedProps.technologyDetails = document.getElementById('technologyDescription').innerHTML; // Placeholder field
-
-
-            // 2. Send PUT request
-            try {
-                const response = await fetch(`/api/facilities/${facilityId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(updatedProps), // Send only the properties object
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`HTTP error! status: ${response.status} - ${errorData.message}`);
-                }
-
-                const savedData = await response.json(); // Server returns updated properties
-                console.log('Save successful:', savedData);
-
-                // Update local data store (important!)
-                // The server returns only properties, merge them back into the feature object
-                currentFacilityData.properties = savedData;
-
-
-                // 3. Re-populate page with saved data & disable edit mode
-                populatePage(currentFacilityData); // Re-populate with potentially cleaned data from server
-                disableEditMode();
-                alert('Changes saved successfully!'); // Simple feedback
-
-            } catch (error) {
-                console.error('Error saving facility data:', error);
-                alert(`Error saving changes: ${error.message}`);
-                // Keep edit mode active so user doesn't lose changes
-            }
-        }
-
+        // REMOVED Edit Mode Functions (enableEditMode, disableEditMode, saveChanges)
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', async function() {
@@ -405,13 +317,13 @@
                 currentFacilityData = await response.json(); // Store the fetched data (full feature object)
                 populatePage(currentFacilityData);
 
-                 // Setup Edit/Save button listeners only if logged in
-                 if (isLoggedIn && editButton) {
-                     editButton.style.display = 'inline-block'; // Show edit button
-                     editButton.addEventListener('click', enableEditMode);
-                     document.getElementById('saveButton').addEventListener('click', saveChanges);
-                 } else if (editButton) {
-                     editButton.style.display = 'none'; // Ensure it's hidden if not logged in
+                 // Setup Edit link only if logged in
+                 const editLink = document.getElementById('editLink');
+                 if (isLoggedIn && editLink) {
+                     editLink.href = `../edit-facility.html?id=${facilityId}`; // Use correct variable name
+                     editLink.style.display = 'inline-block'; // Show edit link
+                 } else if (editLink) {
+                     editLink.style.display = 'none'; // Ensure it's hidden if not logged in
                  }
 
             } catch (error) {
@@ -421,7 +333,50 @@
                     `<div class="alert alert-danger">Error loading facility details: ${error.message}</div>
                      <a href="../index.html" class="btn btn-outline-primary mt-3"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>`;
             }
+
+            // Also check auth status for the header nav
+            checkAuthStatus();
         });
+
+        // Auth Check/Logout Logic (Copied from other pages)
+        async function checkAuthStatus() {
+            const authStatusElement = document.getElementById('authStatus');
+            if (!authStatusElement) return;
+            try {
+                const response = await fetch('/api/session'); // Use relative path for API
+                const sessionData = await response.json();
+                if (sessionData.loggedIn) {
+                    authStatusElement.innerHTML = `
+                        <span class="navbar-text me-3">Welcome, ${sessionData.user.username}!</span>
+                        <!-- Removed Add Facility button from detail page nav -->
+                        <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger">Logout</a>
+                    `;
+                    const logoutLink = document.getElementById('logoutLink');
+                    if(logoutLink) logoutLink.addEventListener('click', handleLogout);
+                } else {
+                    authStatusElement.innerHTML = `<a href="../login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`; // Adjusted path for login link
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                authStatusElement.innerHTML = '<span class="text-danger small">Session check failed</span>';
+            }
+        }
+
+        async function handleLogout(event) {
+            event.preventDefault();
+            try {
+                const response = await fetch('/api/logout'); // Use relative path for API
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = '../index.html'; // Go to dashboard after logout
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('An error occurred during logout.');
+            }
+        }
     </script>
 </body>
 </html>
