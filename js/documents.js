@@ -731,7 +731,7 @@ async function renderTreeView() { // Simplified signature
 // --- Event Handlers ---
 
 function handleItemClick(event) {
-    event.preventDefault(); // Prevent default link behavior
+    // event.preventDefault(); // Moved inside specific type handlers
 
     const target = event.target;
     const itemLink = target.closest('a.item-link'); // Click might be on icon inside link
@@ -743,13 +743,16 @@ function handleItemClick(event) {
         console.log(`Item link clicked: ID=${itemId}, Type=${itemType}`);
 
         if (itemType === 'folder') {
+            event.preventDefault(); // Prevent default only for folders
             handleFolderClick(itemId);
         } else if (itemType === 'file') {
+            event.preventDefault(); // Prevent default only for files
             handleFileClick(itemId);
         }
-        // Links are handled by href, no JS needed here unless we add tracking etc.
+        // Links will now follow their href by default
 
     } else if (actionLink) {
+        event.preventDefault(); // Prevent default for action dropdown links
         const itemId = actionLink.dataset.itemId;
         console.log(`Action link clicked for item ID=${itemId}`);
 
