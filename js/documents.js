@@ -705,7 +705,7 @@ async function renderTreeView() { // Simplified signature
     try {
         // Fetch top-level items (parentId === 'root') using the new API
         console.log("Fetching root items for tree view...");
-        const response = await fetch(`/api/doc_items?parentId=root`);
+        const response = await fetchWithAuth(`/api/doc_items?parentId=root`); // Use fetchWithAuth
         if (!response.ok) {
              throw new Error(`Failed to fetch root items: ${response.statusText}`);
         }
