@@ -6,38 +6,61 @@ const admin = require('firebase-admin'); // Firebase Admin SDK
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 
 const app = express();
+
+// Trust the Vercel proxy to correctly set secure headers (like X-Forwarded-Proto)
+app.set('trust proxy', 1);
+
 const port = 3000; // Port is less relevant in serverless, but keep for consistency
 // Adjust data file path relative to the new location inside 'api' directory
 const dataFilePath = path.join(__dirname, '..', 'data', 'facilities.json');
 
 // --- Firebase Initialization ---
-// --- Firebase Initialization using Environment Variables ---
-// IMPORTANT: Ensure FIREBASE_SERVICE_ACCOUNT and FIREBASE_STORAGE_BUCKET environment variables are set in Vercel.
-const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+// --- Firebase Initialization (Conditional: Env Vars or Local File) ---
+let serviceAccount;
 const firebaseBucketName = process.env.FIREBASE_STORAGE_BUCKET || 'leafy-bulwark-442103-e7.firebasestorage.app'; // Fallback if not set
 
-if (!serviceAccountJson) {
-    console.error("FATAL ERROR: FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
-    // Optionally exit or handle gracefully depending on whether Firebase is critical at startup
-    // process.exit(1);
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Use environment variable (Vercel)
+    console.log("Attempting Firebase init via environment variable...");
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (e) {
+        console.error("FATAL ERROR: Could not parse FIREBASE_SERVICE_ACCOUNT environment variable.", e);
+        // process.exit(1); // Exit if parsing fails
+    }
+} else {
+    // Fallback to local file (Local Development)
+    console.log("Attempting Firebase init via local file...");
+    const serviceAccountPath = path.join(__dirname, '..', 'config', 'leafy-bulwark-442103-e7-firebase-adminsdk-fbsvc-31a9c3e896.json');
+    try {
+        // Use require for JSON files
+        serviceAccount = require(serviceAccountPath);
+    } catch (e) {
+        console.error(`FATAL ERROR: Could not load local service account file at ${serviceAccountPath}. Ensure the file exists and path is correct.`, e);
+        // process.exit(1); // Exit if local file fails
+    }
 }
 
-try {
-    // Check if Firebase app is already initialized (important in serverless environments)
-    if (!admin.apps.length) {
-        const serviceAccount = JSON.parse(serviceAccountJson);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            storageBucket: firebaseBucketName
-        });
-        console.log('Firebase Admin SDK initialized successfully.');
-    } else {
-        console.log('Firebase Admin SDK already initialized.');
+if (serviceAccount) {
+    try {
+        // Check if Firebase app is already initialized (important in serverless environments)
+        if (!admin.apps.length) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                storageBucket: firebaseBucketName
+            });
+            console.log('Firebase Admin SDK initialized successfully.');
+        } else {
+            console.log('Firebase Admin SDK already initialized.');
+        }
+    } catch (error) {
+        console.error('Error initializing Firebase Admin SDK:', error);
+        // Consider exiting the process if Firebase is essential
+        // process.exit(1);
     }
-} catch (error) {
-    console.error('Error initializing Firebase Admin SDK:', error);
-    // Consider exiting the process if Firebase is essential
-    // process.exit(1);
+} else {
+     console.error("FATAL ERROR: Firebase Service Account could not be loaded from environment variable or local file.");
+     // process.exit(1); // Exit if service account is missing entirely
 }
 // Get bucket instance after initialization check
 const bucket = admin.storage().bucket();
@@ -65,8 +88,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'your-very-secret-key', // Use environment variable for secret!
     resave: false,
     saveUninitialized: false, // Don't save sessions for non-logged-in users
-    // Temporarily disable secure cookie for debugging Vercel session issues
-    cookie: { secure: false } // Set secure based on environment // TODO: Revert to process.env.NODE_ENV === 'production'
+    cookie: { secure: process.env.NODE_ENV === 'production' } // Set secure based on environment
 }));
 
 // Simple hardcoded credentials (replace with database lookup in real app)
@@ -466,10 +488,13 @@ app.get('/api/facilities/:id/documents/:filename/url', isAuthenticated, async (r
 // --- End Document/Link Management Endpoints ---
 
 
-// --- Start Server (Commented out for Vercel) ---
-// app.listen(port, () => {
-//     console.log(`Server listening at http://localhost:${port}`);
-// });
+// --- Start Server (Only for local development) ---
+if (process.env.NODE_ENV !== 'production') {
+    const localPort = process.env.PORT || 3000; // Use PORT env var if available, otherwise 3000
+    app.listen(localPort, () => {
+        console.log(`Server listening for local development at http://localhost:${localPort}`);
+    });
+}
 
-// Export the app for Vercel Serverless Functions
+// Export the app for Vercel Serverless Functions (runs regardless)
 module.exports = app;

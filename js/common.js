@@ -13,18 +13,45 @@ const pageInitializerNames = {
 // --- Initial Load ---
 document.addEventListener('DOMContentLoaded', function() {
     const headerPlaceholder = document.getElementById('header-placeholder');
+    const footerPlaceholder = document.getElementById('footer-placeholder'); // Get footer placeholder too
+
+    // Function to load footer and set year
+    const loadFooter = () => {
+        if (footerPlaceholder) {
+            return fetch('/includes/_footer.html') // Absolute path
+                .then(response => response.ok ? response.text() : Promise.reject(`HTTP error loading footer! status: ${response.status}`))
+                .then(html => {
+                    footerPlaceholder.innerHTML = html;
+                    const yearSpan = footerPlaceholder.querySelector('#copyright-year');
+                    if (yearSpan) {
+                        yearSpan.textContent = new Date().getFullYear();
+                    }
+                    console.log("Footer loaded and year set.");
+                })
+                .catch(error => {
+                     console.error('Error loading footer:', error);
+                     if (footerPlaceholder) footerPlaceholder.innerHTML = '<p class="text-danger text-center">Error loading site footer.</p>';
+                });
+        } else {
+            console.warn("Footer placeholder element not found on this page.");
+            return Promise.resolve(); // Resolve immediately if no placeholder
+        }
+    };
 
     if (headerPlaceholder) {
         fetch('/includes/_header.html') // Changed to absolute path
             .then(response => response.ok ? response.text() : Promise.reject(`HTTP error loading header! status: ${response.status}`))
             .then(html => {
+                // Header loaded successfully
                 headerPlaceholder.innerHTML = html;
                 setActiveNavLink();
                 initializeThemeSwitcher();
-                return checkAuthStatus(); // Return promise to chain
+                // Now load footer, then check auth status
+                return loadFooter().then(() => checkAuthStatus());
             })
             .then(() => {
-                 // Initial Page JS Execution (Run directly since script is already loaded, but use setTimeout for safety)
+                 // This block runs after header, footer, and auth check are done (or attempted)
+                 // Initial Page JS Execution
                  setTimeout(() => {
                      const fullPath = window.location.pathname;
                      const initialPageName = fullPath.split('/').pop() || 'index.html';
@@ -50,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
                      }
                  }, 0); // Delay execution slightly
 
-                 // Initialize Router AFTER everything else (Router init doesn't need delay)
+                 // Initialize Router AFTER everything else
                  initializeRouter();
                  // Set Initial Subtitle
                  const pageSubtitleElement = document.getElementById('page-subtitle-main');
@@ -60,11 +87,18 @@ document.addEventListener('DOMContentLoaded', function() {
                  }
             })
             .catch(error => {
-                console.error('Error during initial setup:', error);
-                if (headerPlaceholder) headerPlaceholder.innerHTML = '<p class="text-danger">Error loading site header.</p>';
+                // This catches errors from header fetch, footer fetch, or auth check
+                console.error('Error during initial setup chain:', error);
+                // Handle header error specifically if needed
+                if (headerPlaceholder && !headerPlaceholder.innerHTML) { // Only if header failed
+                     headerPlaceholder.innerHTML = '<p class="text-danger">Error loading site header.</p>';
+                }
+                // Footer error is handled within loadFooter function
             });
     } else {
         console.error('Header placeholder element not found.');
+        // If header placeholder is missing, maybe still try loading footer? Or maybe not.
+        // Let's assume if header is missing, the page structure is wrong.
     }
 });
 
