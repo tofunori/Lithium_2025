@@ -22,20 +22,11 @@
              <div id="errorMessage" class="alert alert-danger d-none mt-4" role="alert"></div> <!-- Added mt-4 -->
              <div id="successMessage" class="alert alert-success d-none mt-4" role="alert"></div> <!-- Added mt-4 -->
 
-            <div class="card mb-4 mt-4"> <!-- Added mt-4 -->
-                <div class="card-header">Select Facility</div>
-                <div class="card-body">
-                     <label for="facilitySelect" class="form-label">Select a facility to manage its documents:</label>
-                     <select class="form-select" id="facilitySelect">
-                         <option selected disabled value="">-- Select a Facility --</option>
-                         <option value="ALL">-- All Facilities --</option> <!-- Added All Facilities Option -->
-                         <!-- Facility options will be loaded here by JavaScript -->
-                     </select>
-                </div>
-            </div>
+            <!-- [REMOVED] Facility Selector Card -->
 
-            <!-- Document Management Section (Initially hidden/disabled) -->
-            <div id="documentManagementSection" class="d-none">
+            <!-- Document Management Section (Now always visible, potentially) -->
+            <!-- Consider removing d-none if section should always show -->
+            <div id="documentManagementSection" class="mt-4">
                 <div class="row">
                     <!-- Tree View Column -->
                     <div class="col-md-3 border-end" id="folderTreeViewContainer">

@@ -278,38 +278,47 @@ app.post('/api/facilities/:id/files', isAuthenticated, upload.single('document')
         }
         const parentFolder = filesystem[parentId];
         if (!parentFolder || parentFolder.type !== 'folder') {
-            return res.status(400).json({ message: `Invalid parentId: Folder with ID ${parentId} not found.` });
+            // Parent validation will happen in the /api/doc_items call later
+            // return res.status(400).json({ message: `Invalid parentId: Folder with ID ${parentId} not found.` });
         }
 
+        // --- Upload to Storage ---
         const fileUpload = bucket.file(storagePath);
         await fileUpload.save(req.file.buffer, { metadata: { contentType: req.file.mimetype } });
         console.log(`File ${originalFilename} (ID: ${fileId}) uploaded to Firebase Storage at ${storagePath}`);
+        // --- End Upload to Storage ---
 
-        const newFileMetadata = {
-            id: fileId, type: 'file', name: originalFilename, parentId: parentId,
-            storagePath: storagePath, uploadedAt: new Date().toISOString(),
-            mimetype: req.file.mimetype, size: req.file.size
-        };
-        const updatePayload = {
-            [`properties.filesystem.${fileId}`]: newFileMetadata,
-            [`properties.filesystem.${parentId}.children`]: admin.firestore.FieldValue.arrayUnion(fileId)
-        };
-        await docRef.update(updatePayload);
-        console.log(`Firestore updated for facility ${facilityId}: Added file ${fileId} to folder ${parentId}`);
 
-        const updatedDocSnap = await docRef.get(); // Re-fetch is optional
-        const updatedFilesystem = updatedDocSnap.data().properties.filesystem;
-        res.status(201).json({
-            message: 'File uploaded and filesystem updated successfully.',
-            newFile: newFileMetadata,
-            updatedFilesystem: updatedFilesystem
+        // --- Remove Firestore Update Logic ---
+        // const newFileMetadata = { ... };
+        // const updatePayload = { ... };
+        // await docRef.update(updatePayload);
+        // console.log(`Firestore updated for facility ${facilityId}: Added file ${fileId} to folder ${parentId}`);
+        // --- End Remove Firestore Update Logic ---
+
+
+        // --- Return Metadata for Frontend ---
+        // Return the necessary info for the frontend to create the doc_item
+        res.status(200).json({ // Use 200 OK since we only stored the file, not the final metadata record
+            success: true,
+            message: 'File stored successfully. Create doc_item metadata next.',
+            // Data needed for the POST /api/doc_items call:
+            name: originalFilename,
+            storagePath: storagePath,
+            contentType: req.file.mimetype, // Use contentType for consistency
+            size: req.file.size,
+            parentId: parentId // Pass parentId back to frontend
         });
+        // --- End Return Metadata ---
+
     } catch (err) {
         console.error(`Error uploading file ${originalFilename} for facility ${facilityId}:`, err);
-        res.status(500).json({ message: 'Error processing file upload.' });
+        // If storage upload fails, delete the temporary file? (Multer might handle this)
+        res.status(500).json({ message: 'Error processing file upload.' }); // Keep original error message
     }
 });
 
+/* // [Refactored] POST /api/facilities/:id/links - Use POST /api/doc_items instead
 app.post('/api/facilities/:id/links', isAuthenticated, async (req, res) => {
     // POST Add a website link
     const facilityId = req.params.id;
@@ -357,6 +366,351 @@ app.post('/api/facilities/:id/links', isAuthenticated, async (req, res) => {
         res.status(500).json({ message: 'Error adding link.' });
     }
 });
+*/
+
+// --- Document Items API Routes (New Structure) ---
+
+// POST /api/doc_items - Create a new folder, file metadata, or link
+app.post('/api/doc_items', isAuthenticated, async (req, res) => {
+    const { parentId, name, type, tags, url, storagePath, size, contentType } = req.body;
+
+    // Basic Validation
+    if (!name || !type || !parentId) {
+        return res.status(400).json({ message: 'Missing required fields: name, type, parentId.' });
+    }
+    if (!['folder', 'file', 'link'].includes(type)) {
+        return res.status(400).json({ message: 'Invalid type specified.' });
+    }
+    if (type === 'link' && !url) {
+        return res.status(400).json({ message: 'Missing url for type link.' });
+    }
+    // Add more validation as needed (e.g., for file fields)
+
+    const docId = uuidv4();
+    const cleanName = name.trim();
+    const cleanTags = Array.isArray(tags) ? tags.filter(t => typeof t === 'string') : [];
+
+    const docItemData = {
+        id: docId,
+        name: cleanName,
+        type: type,
+        parentId: parentId, // Should be 'root' or a valid doc_items ID
+        tags: cleanTags,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (type === 'folder') {
+        // Folders don't have children array here, relationship is via parentId
+    } else if (type === 'file') {
+        docItemData.storagePath = storagePath || null;
+        docItemData.size = size || 0;
+        docItemData.contentType = contentType || null;
+    } else if (type === 'link') {
+        docItemData.url = url;
+    }
+
+    try {
+        // Validate parentId exists (unless 'root')
+        if (parentId !== 'root') {
+            const parentRef = db.collection('doc_items').doc(parentId);
+            const parentSnap = await parentRef.get();
+            if (!parentSnap.exists || parentSnap.data().type !== 'folder') {
+                return res.status(400).json({ message: `Invalid parentId: Folder ${parentId} not found.` });
+            }
+        }
+
+        // TODO: Optional - Check for duplicate name within the same parent folder
+
+        // Add the new item
+        const newItemRef = db.collection('doc_items').doc(docId);
+        await newItemRef.set(docItemData);
+
+        console.log(`Created doc_item: ${type} '${cleanName}' (ID: ${docId}) with parent ${parentId}`);
+
+        // Fetch the created data to include server timestamp
+        const createdDocSnap = await newItemRef.get();
+        res.status(201).json(createdDocSnap.data());
+
+    } catch (error) {
+        console.error(`Error creating doc_item (${type} '${cleanName}'):`, error);
+        res.status(500).json({ message: 'Failed to create document item.' });
+    }
+});
+
+
+// GET /api/doc_items - Fetch items, filter by parentId or tags
+app.get('/api/doc_items', isAuthenticated, async (req, res) => {
+    const parentId = req.query.parentId; // e.g., ?parentId=xxx or ?parentId=root
+    const tag = req.query.tag; // e.g., ?tag=facility:cirba-ohio
+
+    try {
+        let query = db.collection('doc_items');
+
+        if (parentId) {
+            console.log(`Querying doc_items with parentId: ${parentId}`);
+            query = query.where('parentId', '==', parentId);
+        } else if (tag) {
+            console.log(`Querying doc_items with tag: ${tag}`);
+            query = query.where('tags', 'array-contains', tag);
+        } else {
+            // Default: Fetch top-level items if no filter specified
+            console.log(`Querying doc_items with parentId: root`);
+            query = query.where('parentId', '==', 'root');
+        }
+
+        // Add sorting, e.g., by name (folders first, then files/links)
+        // Firestore requires composite index for filtering and sorting on different fields
+        // Simple sort by name for now:
+        query = query.orderBy('name');
+        // For folders first: query = query.orderBy('type').orderBy('name'); (Requires index)
+
+        const snapshot = await query.get();
+        const items = [];
+        snapshot.forEach(doc => {
+
+
+// GET /api/doc_items/:id - Fetch a single document item by ID
+app.get('/api/doc_items/:id', isAuthenticated, async (req, res) => {
+    const itemId = req.params.id;
+    if (!itemId) return res.status(400).json({ message: 'Missing item ID.' });
+
+    try {
+        const itemRef = db.collection('doc_items').doc(itemId);
+        const itemSnap = await itemRef.get();
+
+        if (!itemSnap.exists) {
+            return res.status(404).json({ message: `Document item with ID ${itemId} not found.` });
+        }
+
+        res.status(200).json(itemSnap.data());
+
+    } catch (error) {
+        console.error(`Error fetching doc_item ${itemId}:`, error);
+        res.status(500).json({ message: 'Failed to fetch document item.' });
+    }
+});
+
+            items.push(doc.data());
+        });
+
+        res.status(200).json(items);
+
+    } catch (error) {
+        console.error('Error fetching doc_items:', error);
+        res.status(500).json({ message: 'Failed to fetch document items.' });
+    }
+});
+
+
+
+// PUT /api/doc_items/:id - Update an item (rename, move, change tags)
+app.put('/api/doc_items/:id', isAuthenticated, async (req, res) => {
+    const itemId = req.params.id;
+    const updateData = req.body; // e.g., { name: 'newName' } or { parentId: 'newParentId' } or { tags: [...] }
+
+    if (!itemId) return res.status(400).json({ message: 'Missing item ID.' });
+    if (Object.keys(updateData).length === 0) return res.status(400).json({ message: 'No update data provided.' });
+
+    const allowedFields = ['name', 'parentId', 'tags', 'url']; // Define fields allowed for update
+    const cleanUpdateData = {};
+    let isMoveOperation = false;
+
+    for (const key in updateData) {
+        if (allowedFields.includes(key)) {
+            if (key === 'name') {
+                const cleanName = updateData.name?.trim();
+                if (!cleanName) return res.status(400).json({ message: 'Invalid name provided.' });
+                cleanUpdateData.name = cleanName;
+            } else if (key === 'parentId') {
+                if (!updateData.parentId) return res.status(400).json({ message: 'Invalid new parentId provided.' });
+                cleanUpdateData.parentId = updateData.parentId;
+                isMoveOperation = true;
+            } else if (key === 'tags') {
+                if (!Array.isArray(updateData.tags)) return res.status(400).json({ message: 'Tags must be an array.' });
+                cleanUpdateData.tags = updateData.tags.filter(t => typeof t === 'string');
+            } else if (key === 'url') {
+                 // Add URL validation if needed
+                 cleanUpdateData.url = updateData.url;
+            }
+        }
+    }
+
+    if (Object.keys(cleanUpdateData).length === 0) {
+        return res.status(400).json({ message: 'No valid fields provided for update.' });
+    }
+
+    // Add timestamp for update
+    cleanUpdateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    try {
+        const itemRef = db.collection('doc_items').doc(itemId);
+        const itemSnap = await itemRef.get();
+
+        if (!itemSnap.exists) {
+            return res.status(404).json({ message: `Item with ID ${itemId} not found.` });
+        }
+
+        // --- Specific Validations --- 
+        // Prevent renaming/moving root
+        if (itemSnap.data().parentId === null || itemSnap.data().parentId === 'root') {
+             if (cleanUpdateData.name && itemSnap.data().name === '/') {
+                  return res.status(400).json({ message: 'Cannot rename the absolute root folder.' });
+             }
+             if (cleanUpdateData.parentId) {
+                  return res.status(400).json({ message: 'Cannot move the absolute root folder.' });
+             }
+        }
+        // If moving, validate the new parent
+        if (isMoveOperation) {
+            const newParentId = cleanUpdateData.parentId;
+            if (itemId === newParentId) return res.status(400).json({ message: 'Cannot move an item into itself.' });
+            if (newParentId !== 'root') {
+                 const parentRef = db.collection('doc_items').doc(newParentId);
+                 const parentSnap = await parentRef.get();
+                 if (!parentSnap.exists || parentSnap.data().type !== 'folder') {
+                     return res.status(400).json({ message: `Invalid newParentId: Folder ${newParentId} not found.` });
+                 }
+                 // TODO: Optional - Add check for circular moves (moving a folder into one of its own descendants)
+            }
+        }
+        // If renaming, check for name collision within the *current* parent (optional)
+        // if (cleanUpdateData.name) { ... }
+        // --- End Validations ---
+
+        await itemRef.update(cleanUpdateData);
+        console.log(`Updated doc_item ${itemId}:`, cleanUpdateData);
+
+        const updatedDocSnap = await itemRef.get();
+        res.status(200).json(updatedDocSnap.data());
+
+    } catch (error) {
+        console.error(`Error updating doc_item ${itemId}:`, error);
+        res.status(500).json({ message: 'Failed to update document item.' });
+    }
+});
+
+
+// DELETE /api/doc_items/:id - Delete an item (file, link, or folder recursively)
+app.delete('/api/doc_items/:id', isAuthenticated, async (req, res) => {
+    const itemId = req.params.id;
+    if (!itemId) return res.status(400).json({ message: 'Missing item ID.' });
+
+    console.log(`Attempting to delete doc_item: ${itemId}`);
+    const itemRef = db.collection('doc_items').doc(itemId);
+
+    try {
+        const itemSnap = await itemRef.get();
+        if (!itemSnap.exists) {
+            return res.status(404).json({ message: `Item with ID ${itemId} not found.` });
+        }
+        const itemData = itemSnap.data();
+
+        // --- Recursive Deletion Logic --- 
+        async function deleteRecursively(idToDelete) {
+            const currentItemRef = db.collection('doc_items').doc(idToDelete);
+            const currentItemSnap = await currentItemRef.get();
+            if (!currentItemSnap.exists) return; // Already deleted or doesn't exist
+            const currentItemData = currentItemSnap.data();
+
+            // 1. Delete associated storage file if it's a file
+            if (currentItemData.type === 'file' && currentItemData.storagePath) {
+                console.log(`  Deleting file from storage: ${currentItemData.storagePath}`);
+                try {
+                    await bucket.file(currentItemData.storagePath).delete();
+                } catch (storageError) {
+                    // Log error but continue deletion process
+                    console.error(`  Failed to delete file ${currentItemData.storagePath} from storage:`, storageError.message);
+                }
+            }
+
+            // 2. Recursively delete children if it's a folder
+            if (currentItemData.type === 'folder') {
+                console.log(`  Recursively deleting children of folder: ${idToDelete}`);
+                const childrenQuery = db.collection('doc_items').where('parentId', '==', idToDelete);
+                const childrenSnapshot = await childrenQuery.get();
+                if (!childrenSnapshot.empty) {
+                    const deletePromises = [];
+                    childrenSnapshot.forEach(childDoc => {
+                        console.log(`    Queueing deletion for child: ${childDoc.id}`);
+                        deletePromises.push(deleteRecursively(childDoc.id));
+                    });
+                    await Promise.all(deletePromises);
+                }
+            }
+
+            // 3. Delete the Firestore document itself
+            console.log(`  Deleting Firestore document: ${idToDelete}`);
+            await currentItemRef.delete();
+
+
+// GET /api/doc_items/:id/download-url - Get a temporary signed URL for a file
+app.get('/api/doc_items/:id/download-url', isAuthenticated, async (req, res) => {
+    const itemId = req.params.id;
+    if (!itemId) return res.status(400).json({ message: 'Missing item ID.' });
+
+    try {
+        const itemRef = db.collection('doc_items').doc(itemId);
+        const itemSnap = await itemRef.get();
+
+        if (!itemSnap.exists) {
+            return res.status(404).json({ message: `Document item with ID ${itemId} not found.` });
+        }
+        const itemData = itemSnap.data();
+
+        if (itemData.type !== 'file') {
+            return res.status(400).json({ message: `Item ${itemId} is not a file.` });
+        }
+
+        const storagePath = itemData.storagePath;
+        if (!storagePath) {
+            console.error(`Missing storagePath for doc_item ${itemId}`);
+            return res.status(500).json({ message: 'Internal error: File storage path is missing.' });
+        }
+
+        const fileInStorage = bucket.file(storagePath);
+        const [exists] = await fileInStorage.exists();
+        if (!exists) {
+            console.warn(`File metadata exists for ${itemId}, but file not found in storage at: ${storagePath}`);
+            return res.status(404).json({ message: 'File not found in storage, metadata might be out of sync.' });
+        }
+
+        // Generate signed URL (e.g., expires in 15 minutes)
+        const options = { version: 'v4', action: 'read', expires: Date.now() + 15 * 60 * 1000 };
+        const [url] = await fileInStorage.getSignedUrl(options);
+        console.log(`Generated signed URL for doc_item ${itemId} (Path: ${storagePath})`);
+        res.json({ url });
+
+    } catch (error) {
+        console.error(`Error generating signed URL for doc_item ${itemId}:`, error);
+        res.status(500).json({ message: 'Error generating download URL.' });
+    }
+});
+
+        }
+        // --- End Recursive Deletion Logic ---
+
+        // Prevent deleting absolute root
+        if (itemData.parentId === null || itemData.parentId === 'root') {
+             if (itemData.name === '/' && itemData.type === 'folder') {
+                  return res.status(400).json({ message: 'Cannot delete the absolute root folder.' });
+             }
+        }
+
+        // Start the deletion process
+        await deleteRecursively(itemId);
+
+        console.log(`Successfully deleted doc_item ${itemId} and its descendants (if any).`);
+        res.status(200).json({ message: 'Item deleted successfully.' });
+
+    } catch (error) {
+        console.error(`Error deleting doc_item ${itemId}:`, error);
+        res.status(500).json({ message: 'Failed to delete document item.' });
+    }
+});
+
+
+
 
 app.post('/api/facilities/:id/folders', isAuthenticated, async (req, res) => {
     // POST Create a new folder
@@ -408,6 +762,7 @@ app.post('/api/facilities/:id/folders', isAuthenticated, async (req, res) => {
     }
 });
 
+/* // [Refactored] PUT /api/facilities/:id/items/:itemId - Use PUT /api/doc_items/:id instead
 app.put('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res) => {
     // PUT Rename or Move an item
     const facilityId = req.params.id;
@@ -470,6 +825,7 @@ app.put('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res) =
         else res.status(500).json({ message: `Error ${actionVerb} item.` });
     }
 });
+*/
 
 // DEBUG: Catch-all middleware before DELETE route (REMOVED FOR CLEANUP)
 // app.use('/api/facilities/:id/items/:itemId', (req, res, next) => {
@@ -478,6 +834,7 @@ app.put('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res) =
 // });
 
 // DELETE an item (file, link, or folder) - RESTORED isAuthenticated
+/* // [Refactored] DELETE /api/facilities/:id/items/:itemId - Use DELETE /api/doc_items/:id instead
 app.delete('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res) => {
     const facilityId = req.params.id;
     const itemId = req.params.itemId;
@@ -539,7 +896,9 @@ app.delete('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res
         else res.status(500).json({ message: 'Error deleting item.' });
     }
 });
+*/
 
+/* // [Refactored] GET /api/facilities/:id/files/:fileId/url - Use GET /api/doc_items/:id/download-url instead
 app.get('/api/facilities/:id/files/:fileId/url', isAuthenticated, async (req, res) => {
     // GET a temporary signed URL for a file
     const facilityId = req.params.id;
@@ -578,6 +937,7 @@ app.get('/api/facilities/:id/files/:fileId/url', isAuthenticated, async (req, re
         res.status(500).json({ message: 'Error generating download URL.' });
     }
 });
+*/
 // --- End Document/Link Management Endpoints ---
 
 

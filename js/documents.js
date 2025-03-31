@@ -1,18 +1,14 @@
 // js/documents.js - Logic for the File Explorer Documents page
 
 // --- State Variables ---
-var currentSelectedFacilityId = null;
-var currentFacilityName = null; // Store the name for display
-var currentFilesystemData = null; // Holds the entire filesystem map for the selected facility
-var currentFolderId = null; // ID of the folder currently being viewed
-var isAllFacilitiesMode = false; // Flag for combined view
-var allFacilitiesData = null; // Holds data for all facilities (features array)
+var currentFolderId = null; // ID of the folder currently being viewed ('root' or doc_item ID)
+// Removed: currentSelectedFacilityId, currentFacilityName, currentFilesystemData, isAllFacilitiesMode, allFacilitiesData
 
 // --- DOM Element References ---
 // Will be assigned in initDocumentsPage
-var facilitySelect = null;
+// Removed: facilitySelect
 var documentManagementSection = null;
-var selectedFacilityNameElement = null;
+var selectedFacilityNameElement = null; // May repurpose or remove later
 var breadcrumbNav = null;
 var breadcrumbList = null;
 var fileExplorerView = null;
@@ -29,12 +25,12 @@ var folderTreeView = null;
 // --- Initialization ---
 // Called by router when the documents page is loaded
 window.initDocumentsPage = function() {
-    console.log("Initializing File Explorer Documents Page...");
+    console.log("Initializing File Explorer Documents Page (New Structure)...");
 
     // --- Query DOM Elements ---
-    facilitySelect = document.getElementById('facilitySelect');
+    // Removed: facilitySelect
     documentManagementSection = document.getElementById('documentManagementSection');
-    selectedFacilityNameElement = document.getElementById('selectedFacilityName');
+    selectedFacilityNameElement = document.getElementById('selectedFacilityName'); // May remove later
     breadcrumbNav = document.getElementById('breadcrumbNav');
     breadcrumbList = document.getElementById('breadcrumbList');
     fileExplorerView = document.getElementById('fileExplorerView');
@@ -50,7 +46,8 @@ window.initDocumentsPage = function() {
     // --- End Query DOM Elements ---
 
     // Check if essential elements exist
-    if (!facilitySelect || !documentManagementSection || !fileExplorerView || !breadcrumbList || !newFolderButton || !folderTreeViewContainer || !folderTreeView) {
+    // Removed: !facilitySelect
+    if (!documentManagementSection || !fileExplorerView || !breadcrumbList || !newFolderButton || !folderTreeViewContainer || !folderTreeView) {
         console.error("Essential elements for File Explorer page not found. Aborting initialization.");
         if (errorMessageDiv) showError("Error initializing page elements. Please refresh.");
         return;
@@ -58,28 +55,45 @@ window.initDocumentsPage = function() {
 
     // --- Reset State and UI ---
     console.log("Resetting file explorer state and UI...");
-    currentSelectedFacilityId = null;
-    currentFacilityName = null;
-    currentFilesystemData = null;
-    currentFolderId = null;
-    facilitySelect.innerHTML = '<option selected disabled value="">-- Select a Facility --</option>'; // Keep only default
-    facilitySelect.value = ''; // Reset selection
+    currentFolderId = 'root'; // Start at the root
+    // Removed resets for deleted state variables
+    // Removed facilitySelect resets
     breadcrumbList.innerHTML = ''; // Clear breadcrumbs
     fileExplorerView.innerHTML = ''; // Clear file view
-    if(loadingMessage) loadingMessage.classList.remove('d-none');
+    if(loadingMessage) loadingMessage.classList.remove('d-none'); // Show loading initially
     if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
-    if(folderTreeView) folderTreeView.innerHTML = '<p class="text-muted small">Select a facility to view folders.</p>'; // Clear tree view
-    documentManagementSection.classList.add('d-none'); // Hide section initially
+    if(folderTreeView) folderTreeView.innerHTML = ''; // Clear tree view
+    // Removed hiding documentManagementSection
     breadcrumbNav.style.display = 'none'; // Hide breadcrumbs initially
     showError(''); showSuccess(''); // Clear messages
     // --- End Reset State and UI ---
 
-    // Populate Facility Dropdown
-    populateFacilityDropdown(); // Re-populate dropdown
+    // Remove title related to facility selection
+    if(selectedFacilityNameElement) selectedFacilityNameElement.textContent = 'Documents'; // Set a generic title
 
     // Add Event Listeners
     setupDocumentsEventListeners();
-}
+
+    // Initial Load - Fetch root contents (make async)
+    console.log("Performing initial fetch for root folder...");
+    // Use Promise.all to run fetches concurrently, await completion
+    // Make initDocumentsPage async
+    window.initDocumentsPage = async function() { // Make the function async
+        // ... (rest of the function setup code remains the same) ...
+
+        // Initial Load - Fetch root contents
+        console.log("Performing initial fetch for root folder...");
+        // Use Promise.all to run fetches concurrently, await completion
+        await Promise.all([
+            fetchAndRenderFolderContents(currentFolderId), // Fetch and render root ('root')
+            renderTreeView() // Render initial tree (root level)
+        ]);
+        // Render breadcrumbs *after* initial content might be fetched (or handle within fetch)
+        await renderBreadcrumbs(currentFolderId);
+        console.log("Initial page load rendering complete.");
+    }; // Close async function definition
+
+} // This closing brace might be extra now, depends on original structure
 
 // Function to setup event listeners, preventing duplicates
 function setupDocumentsEventListeners() {
@@ -87,7 +101,7 @@ function setupDocumentsEventListeners() {
 
     // Remove old listeners if they exist (simple approach)
     // A more robust approach might involve storing references and removing specific ones
-    facilitySelect?.removeEventListener('change', handleFacilitySelection);
+    // Removed: facilitySelect listener
     breadcrumbNav?.removeEventListener('click', handleBreadcrumbClick);
     fileExplorerView?.removeEventListener('click', handleItemClick);
     newFolderButton?.removeEventListener('click', handleNewFolderClick);
@@ -96,9 +110,7 @@ function setupDocumentsEventListeners() {
     folderTreeView?.removeEventListener('click', handleTreeViewClick);
 
     // Add new listeners
-    if (facilitySelect) {
-        facilitySelect.addEventListener('change', handleFacilitySelection);
-    }
+    // Removed: facilitySelect listener
     if (breadcrumbNav) {
         // Listen for clicks on breadcrumb links
         breadcrumbNav.addEventListener('click', handleBreadcrumbClick);
@@ -124,230 +136,149 @@ function setupDocumentsEventListeners() {
 
 // --- Data Fetching & Handling ---
 
-// Function to fetch all facilities and populate the dropdown
-async function populateFacilityDropdown() {
-    if (!facilitySelect) return;
-    console.log("Populating facility dropdown...");
-    try {
-        // This endpoint now reads from Firestore via api/index.js
-        const response = await fetch('/api/facilities');
-        if (!response.ok) throw new Error(`Error fetching facilities: ${response.statusText}`);
-        const facilitiesData = await response.json(); // Expects { type: "FeatureCollection", features: [...] }
+// Removed: populateFacilityDropdown function
+// Removed: handleFacilitySelection function
 
-        if (!facilitiesData || !facilitiesData.features) {
-             throw new Error("Invalid data format received for facilities.");
+
+// Helper function to show/hide a generic loading indicator
+function showLoadingIndicator(isLoading) {
+    if (loadingMessage) {
+        if (isLoading) {
+            loadingMessage.classList.remove('d-none');
+        } else {
+            loadingMessage.classList.add('d-none');
         }
-
-        facilitiesData.features.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
-        facilitiesData.features.forEach(facility => {
-            const option = document.createElement('option');
-            option.value = facility.properties.id;
-            option.textContent = facility.properties.name;
-            facilitySelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error populating facility dropdown:', error);
-        showError(`Failed to load facility list: ${error.message}`);
     }
+    // Optionally, disable/enable buttons while loading
 }
 
-// Function to handle when a facility is selected from the dropdown
-async function handleFacilitySelection(event) {
-    const selectedValue = event.target.value;
-    console.log("Facility selected:", selectedValue);
 
-    // Reset view
-    currentSelectedFacilityId = selectedValue;
-    currentFacilityName = facilitySelect.options[facilitySelect.selectedIndex]?.text || 'Selected Facility';
-    currentFilesystemData = null;
-    currentFolderId = null;
-    fileExplorerView.innerHTML = '';
-    breadcrumbList.innerHTML = '';
-    breadcrumbNav.style.display = 'none';
+// Fetches items for a given folderId and triggers rendering
+async function fetchAndRenderFolderContents(folderId) {
+    console.log(`Fetching contents for folder: ${folderId}`);
+    if (!fileExplorerView) return;
+
+    // Show loading state
+    fileExplorerView.innerHTML = ''; // Clear previous content
     if(loadingMessage) loadingMessage.classList.remove('d-none');
     if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
-    if(folderTreeView) folderTreeView.innerHTML = '<p class="text-muted small">Loading folders...</p>'; // Clear tree view
-    showError(''); showSuccess('');
+    showError(''); // Clear previous errors
 
-    if (!selectedValue) {
-        documentManagementSection.classList.add('d-none');
-        return;
-    }
-
-    documentManagementSection.classList.remove('d-none');
-    // --- Start Data Fetching Logic ---
     try {
-        if (selectedValue === 'ALL') {
-            // --- Handle "All Facilities" Mode ---
-            console.log("Fetching data for ALL facilities...");
-            isAllFacilitiesMode = true;
-            allFacilitiesData = null; // Clear previous combined data
-            currentFilesystemData = null; // Ensure single facility data is cleared
-            currentFolderId = null; // No specific folder selected initially
-            currentSelectedFacilityId = 'ALL'; // Set special ID
-            currentFacilityName = 'All Facilities'; // Update display name
-
-            if(selectedFacilityNameElement) selectedFacilityNameElement.textContent = `Files for: All Facilities`;
-            // Clear breadcrumbs and main content view for 'All' mode initial state
-            breadcrumbList.innerHTML = '';
-            breadcrumbNav.style.display = 'none';
-            fileExplorerView.innerHTML = '<p class="text-muted p-3">Select a folder from the tree view.</p>'; // Placeholder message
-            if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
-
-
-            const response = await fetch('/api/facilities'); // Fetch all facilities
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: response.statusText }));
-                throw new Error(errorData.message || `Error fetching all facilities`);
-            }
-            const facilitiesCollection = await response.json();
-
-            if (!facilitiesCollection || !facilitiesCollection.features) {
-                throw new Error("Invalid data format received for all facilities.");
-            }
-
-            allFacilitiesData = facilitiesCollection.features; // Store the array of facility features
-            console.log("All facilities data loaded:", allFacilitiesData);
-
-            // Render the combined tree view
-            // Note: renderTreeView will need modification to handle this mode
-            renderTreeView(null, null, folderTreeView); // Pass nulls for now, logic will check isAllFacilitiesMode
-
-        } else {
-            // --- Handle Single Facility Mode ---
-            console.log(`Fetching details for facility: ${selectedValue}`);
-            isAllFacilitiesMode = false;
-            allFacilitiesData = null; // Clear combined data
-            currentFilesystemData = null; // Clear previous single facility data
-            currentFolderId = null;
-            // currentSelectedFacilityId and currentFacilityName are already set above
-
-            if(selectedFacilityNameElement) selectedFacilityNameElement.textContent = `Files for: ${currentFacilityName}`;
-
-            // Fetch the specific facility data (which includes the filesystem)
-            const response = await fetch(`/api/facilities/${selectedValue}`);
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: response.statusText }));
-                throw new Error(errorData.message || `Error fetching details for facility ${selectedValue}`);
-            }
-            const facilityFeature = await response.json();
-
-            if (!facilityFeature || !facilityFeature.properties || !facilityFeature.properties.filesystem) {
-                 throw new Error("Invalid data format received for facility details or filesystem missing.");
-            }
-
-            currentFilesystemData = facilityFeature.properties.filesystem;
-            console.log("Single facility filesystem data loaded:", currentFilesystemData);
-
-            // Find the root folder ID
-            const rootFolderId = `root-${currentSelectedFacilityId}`;
-            if (!currentFilesystemData[rootFolderId] || currentFilesystemData[rootFolderId].type !== 'folder') {
-                console.error("Root folder not found in filesystem data:", rootFolderId);
-                throw new Error("Could not find root folder for this facility.");
-            }
-
-            currentFolderId = rootFolderId;
-            console.log("Current folder set to root:", currentFolderId);
-
-            // Initial render for single facility
-            renderBreadcrumbs(currentFolderId, currentFilesystemData, currentFacilityName); // Pass filesystem and name
-            renderFolderContents(currentFolderId, currentFilesystemData); // Pass filesystem
-            breadcrumbNav.style.display = 'block'; // Show breadcrumbs
-            renderTreeView(currentFilesystemData, rootFolderId, folderTreeView); // Render the single tree
+        const response = await fetch(`/api/doc_items?parentId=${encodeURIComponent(folderId)}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to fetch folder contents (Status: ${response.status})`);
         }
+        const itemsArray = await response.json();
+        console.log(`Contents for ${folderId}:`, itemsArray);
+
+        // Render the fetched items
+        renderFolderContents(itemsArray);
 
     } catch (error) {
-        console.error('Error handling facility selection:', error);
-        showError(`Failed to load data: ${error.message}`);
-        documentManagementSection.classList.add('d-none');
-        // Reset state variables on error
-        currentFilesystemData = null;
-        allFacilitiesData = null;
-        currentFolderId = null;
-        isAllFacilitiesMode = false;
+        console.error(`Error fetching contents for folder ${folderId}:`, error);
+        showError(`Failed to load folder contents: ${error.message}`);
+        fileExplorerView.innerHTML = '<p class="text-danger p-3">Error loading items.</p>'; // Show error in view
     } finally {
-         if(loadingMessage) loadingMessage.classList.add('d-none');
+        if(loadingMessage) loadingMessage.classList.add('d-none'); // Hide loading indicator
     }
-    // --- End Data Fetching Logic ---
 }
 
 // --- Rendering Functions ---
 
-function renderBreadcrumbs(folderId, filesystemToUse, facilityNameForContext = null) { // Added params
-    console.log("Rendering breadcrumbs for folder:", folderId, "Facility Context:", facilityNameForContext);
+// Fetches parent path and renders breadcrumbs asynchronously
+async function renderBreadcrumbs(folderId) {
+    console.log("Rendering breadcrumbs for folder:", folderId);
 
-    if (!filesystemToUse || !breadcrumbList) {
-        console.warn("Filesystem data or breadcrumb list element missing for breadcrumb rendering.");
-        if (breadcrumbList) breadcrumbList.innerHTML = ''; // Clear if possible
-        if (breadcrumbNav) breadcrumbNav.style.display = 'none';
+    if (!breadcrumbList || !breadcrumbNav) {
+        console.error("Breadcrumb elements not found.");
         return;
     }
-    if (!folderId) { // Handle initial 'All Facilities' state where no folder is selected
-         breadcrumbList.innerHTML = '';
-         breadcrumbNav.style.display = 'none';
-         return;
-    }
-
 
     breadcrumbList.innerHTML = ''; // Clear existing
+    breadcrumbNav.style.display = 'none'; // Hide initially
+
+    if (!folderId || folderId === 'root') {
+        // If at root, show only home icon
+        const li = document.createElement('li');
+        li.className = 'breadcrumb-item active';
+        li.setAttribute('aria-current', 'page');
+        li.innerHTML = '<i class="fas fa-home"></i> Root';
+        breadcrumbList.appendChild(li);
+        breadcrumbNav.style.display = 'block';
+        return;
+    }
+
     const path = [];
     let currentId = folderId;
+    let safetyCounter = 0; // Prevent infinite loops
 
-    // Traverse up to the root using the provided filesystem
-    while (currentId) {
-        const folder = filesystemToUse[currentId];
-        if (!folder) break; // Should not happen in consistent data
-        path.unshift(folder); // Add to beginning
-        currentId = folder.parentId;
-    }
+    try {
+        showLoadingIndicator(true); // Show some loading indicator
 
-    // Add Facility Name if in 'All Facilities' mode and not at the absolute root
-    if (isAllFacilitiesMode && facilityNameForContext && path.length > 0) {
-         const facilityLi = document.createElement('li');
-         facilityLi.className = 'breadcrumb-item text-muted'; // Non-clickable facility name
-         facilityLi.textContent = facilityNameForContext;
-         breadcrumbList.appendChild(facilityLi);
-    }
-
-
-    // Create breadcrumb items from the path
-    path.forEach((folder, index) => {
-        const li = document.createElement('li');
-        const isLast = index === path.length - 1;
-        li.className = `breadcrumb-item ${isLast ? 'active' : ''}`;
-        li.setAttribute('aria-current', isLast ? 'page' : 'false');
-
-        const isRoot = folder.parentId === null;
-        const displayName = isRoot ? 'Root' : folder.name;
-
-        if (isLast) {
-            // Last item (current folder) is not a link
-             li.textContent = displayName;
-        } else {
-            const a = document.createElement('a');
-            a.href = '#';
-            a.dataset.folderId = folder.id;
-             // Add facilityId to breadcrumb links if in 'All Facilities' mode
-            if (isAllFacilitiesMode && currentSelectedFacilityId && currentSelectedFacilityId !== 'ALL') {
-                a.dataset.facilityId = currentSelectedFacilityId;
+        // Traverse up the hierarchy by fetching parent details
+        while (currentId && currentId !== 'root' && safetyCounter < 20) {
+            safetyCounter++;
+            // Fetch details for the current item ID
+            const response = await fetch(`/api/doc_items/${currentId}`); // Use new endpoint
+            if (!response.ok) {
+                console.error(`Error fetching breadcrumb item ${currentId}: ${response.statusText}`);
+                throw new Error(`Failed to fetch path item ${currentId}`);
             }
+            const itemData = await response.json();
 
-            if (isRoot) {
-                 a.innerHTML = `<i class="fas fa-home"></i> ${displayName}`;
-            } else {
-                 a.textContent = displayName;
-            }
-            li.appendChild(a);
+            if (!itemData) break; // Should not happen if ID was valid
+
+            path.unshift({ id: itemData.id, name: itemData.name }); // Add to beginning of path array
+
+            currentId = itemData.parentId; // Move to the parent
         }
-        breadcrumbList.appendChild(li);
-    });
 
-    breadcrumbNav.style.display = path.length > 0 ? 'block' : 'none'; // Show only if path exists
+        // Add the root element manually
+        const rootLi = document.createElement('li');
+        rootLi.className = 'breadcrumb-item';
+        const rootLink = document.createElement('a');
+        rootLink.href = '#';
+        rootLink.dataset.folderId = 'root'; // Link to root
+        rootLink.innerHTML = '<i class="fas fa-home"></i> Root';
+        rootLi.appendChild(rootLink);
+        breadcrumbList.appendChild(rootLi);
+
+        // Create breadcrumb items for the fetched path
+        path.forEach((item, index) => {
+            const li = document.createElement('li');
+            const isLast = index === path.length - 1;
+            li.className = `breadcrumb-item ${isLast ? 'active' : ''}`;
+            li.setAttribute('aria-current', isLast ? 'page' : 'false');
+
+            if (isLast) {
+                li.textContent = item.name;
+            } else {
+                const a = document.createElement('a');
+                a.href = '#';
+                a.dataset.folderId = item.id; // Store folder ID for click handling
+                a.textContent = item.name;
+                li.appendChild(a);
+            }
+            breadcrumbList.appendChild(li);
+        });
+
+        breadcrumbNav.style.display = 'block'; // Show breadcrumbs
+
+    } catch (error) {
+        console.error("Error building breadcrumbs:", error);
+        showError("Failed to load navigation path.");
+        breadcrumbList.innerHTML = '<li class="breadcrumb-item active">Error</li>'; // Show error state
+        breadcrumbNav.style.display = 'block';
+    } finally {
+         showLoadingIndicator(false); // Hide loading indicator
+    }
 }
 
-
-function renderFolderContents(folderId, filesystemToUse) { // Added filesystemToUse param
-    console.log("Rendering contents for folder:", folderId);
+// Renders the items (files/folders/links) in the main content table
+function renderFolderContents(itemsArray) { // Changed parameter
+    console.log("Rendering folder contents:", itemsArray);
 
     if (!fileExplorerView) {
         console.error("File explorer view element not found.");
@@ -357,33 +288,13 @@ function renderFolderContents(folderId, filesystemToUse) { // Added filesystemTo
     if(loadingMessage) loadingMessage.classList.add('d-none');
     if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
 
-    // Handle initial state for "All Facilities" where no folder is selected
-    if (isAllFacilitiesMode && !folderId) {
-        fileExplorerView.innerHTML = '<p class="text-muted p-3">Select a folder from the tree view.</p>';
+    // Check if the passed array is valid and has items
+    if (!itemsArray) {
+        console.warn("itemsArray is null or undefined for rendering folder contents.");
+        fileExplorerView.innerHTML = '<p class="text-danger p-3">Error loading folder items.</p>';
         return;
     }
-
-    // Validate filesystem data
-    if (!filesystemToUse) {
-        console.error("Filesystem data missing for rendering folder contents.");
-        showError("Could not load folder data.");
-        return;
-    }
-
-    // Validate folderId and get folder data from the provided filesystem
-    const folder = filesystemToUse[folderId];
-    if (!folder || folder.type !== 'folder') {
-        console.error("Invalid folder ID or item is not a folder in the provided filesystem:", folderId);
-        // Avoid showing generic error if it's just the initial 'All Facilities' state
-        if (!isAllFacilitiesMode || folderId) {
-             showError("Could not load folder contents.");
-        }
-        fileExplorerView.innerHTML = '<p class="text-danger p-3">Error loading folder contents.</p>';
-        return;
-    }
-
-    const childrenIds = folder.children || [];
-    if (childrenIds.length === 0) {
+     if (itemsArray.length === 0) {
         if(emptyFolderMessage) emptyFolderMessage.classList.remove('d-none');
         fileExplorerView.appendChild(emptyFolderMessage);
         return;
@@ -404,12 +315,11 @@ function renderFolderContents(folderId, filesystemToUse) { // Added filesystemTo
     `;
 
     // --- Populate Table Rows ---
-    childrenIds.forEach(itemId => {
-        // Use the provided filesystem
-        const item = filesystemToUse[itemId];
+    // Iterate directly over the passed itemsArray
+    itemsArray.forEach(item => {
         if (!item) {
-            console.warn("Child item not found in filesystem data:", itemId);
-            return; // Skip if data is inconsistent
+            console.warn("Encountered null/undefined item in itemsArray.");
+            return; // Skip invalid item
         }
 
         const row = tbody.insertRow();
@@ -492,189 +402,109 @@ function renderFolderContents(folderId, filesystemToUse) { // Added filesystemTo
 }
 
 
-// Helper function to recursively build the tree HTML
-function buildTreeHtmlRecursive(folderId, filesystemData, currentSelectedFolderId, facilityId) { // Added facilityId
-    const folderData = filesystemData[folderId];
-    if (!folderData || folderData.type !== 'folder') {
-        return null; // Should not happen with valid data
+// Helper function to build HTML for a list of items (folders) in the tree
+// This version doesn't handle recursion; assumes itemsArray is one level
+function buildTreeLevelHtml(itemsArray) {
+    if (!itemsArray || itemsArray.length === 0) {
+        return null;
     }
 
     const ul = document.createElement('ul');
     ul.className = 'list-unstyled ps-3'; // Indentation for nested levels
 
-    // Sort children folders alphabetically by name
-    const childrenFolders = (folderData.children || [])
-        .map(id => filesystemData[id])
-        .filter(item => item && item.type === 'folder')
-        .sort((a, b) => a.name.localeCompare(b.name));
+    // Sort items: folders first, then by name (assuming API sorted by name)
+    const sortedItems = [...itemsArray].sort((a, b) => {
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (a.type !== 'folder' && b.type === 'folder') return 1;
+        return a.name.localeCompare(b.name); // Fallback sort by name
+    });
 
-    childrenFolders.forEach(childFolder => {
+    sortedItems.forEach(item => {
+        // Only render folders in the tree
+        if (item.type !== 'folder') return;
+
         const li = document.createElement('li');
         li.className = 'tree-node';
 
-        // Highlight the currently selected folder
-        const isActive = childFolder.id === currentSelectedFolderId;
+        // Container for the clickable part (icon, name, toggle)
+        const nodeContent = document.createElement('div');
+        nodeContent.className = 'd-flex align-items-center'; // Use flexbox
+
+        // Expand/Collapse Toggle Icon (Chevron)
+        const toggleIcon = document.createElement('a'); // Make it clickable
+        toggleIcon.href = '#';
+        toggleIcon.className = 'expand-toggle me-1 text-muted'; // Class for event listener
+        toggleIcon.dataset.folderId = item.id; // Store folder ID for fetching children
+        toggleIcon.innerHTML = '<i class="fas fa-chevron-right fa-xs"></i>'; // Default: collapsed
+        nodeContent.appendChild(toggleIcon);
+
+        // Highlight the currently selected folder on the main link
+        const isActive = item.id === currentFolderId;
         const link = document.createElement('a');
         link.href = '#';
-        link.dataset.folderId = childFolder.id;
-        if (facilityId) { // Add facilityId if provided
-            link.dataset.facilityId = facilityId;
-        }
-        link.className = `tree-link d-block p-1 rounded ${isActive ? 'active bg-primary text-white' : 'text-dark'}`;
-        link.innerHTML = `<i class="fas fa-folder fa-fw me-1 ${isActive ? '' : 'text-warning'}"></i> ${childFolder.name}`;
+        link.dataset.folderId = item.id; // ID for navigation
+        link.className = `tree-link flex-grow-1 p-1 rounded ${isActive ? 'active bg-primary text-white' : 'text-dark'}`; // flex-grow to take space
 
-        li.appendChild(link);
+        // Determine folder icon based on parentId
+        const folderIconClass = (item.parentId === 'root') ? 'fa-home' : 'fa-folder';
+        const folderIconColor = isActive ? '' : 'text-warning';
+        link.innerHTML = `<i class="fas ${folderIconClass} fa-fw me-1 ${folderIconColor}"></i> ${item.name}`;
+        nodeContent.appendChild(link);
 
-        // Recursively build for children if they exist
-        if (childFolder.children && childFolder.children.length > 0) {
-            // Pass facilityId down in the recursive call
-            const childUl = buildTreeHtmlRecursive(childFolder.id, filesystemData, currentSelectedFolderId, facilityId);
-            if (childUl) {
-                // Basic expand/collapse structure (can be enhanced with CSS/JS)
-                // Add a toggle icon/button if needed
-                li.appendChild(childUl);
-            }
-        }
+        li.appendChild(nodeContent); // Add the content div to the list item
+
+        // Placeholder UL for children, initially hidden
+        const childrenUl = document.createElement('ul');
+        childrenUl.className = 'list-unstyled ps-3 d-none'; // Indented and hidden
+        childrenUl.dataset.parentId = item.id; // Mark which folder these children belong to
+        li.appendChild(childrenUl);
+
         ul.appendChild(li);
     });
 
     return ul.children.length > 0 ? ul : null;
 }
 
-// Main function to render the tree view (handles both single and all facilities mode)
-function renderTreeView(filesystemData, rootFolderId, containerElement) {
-    if (!containerElement) {
+
+// Main function to render the tree view (fetches root items)
+async function renderTreeView() { // Simplified signature
+    if (!folderTreeView) {
         console.error("Tree view container element not found.");
         return;
     }
-    containerElement.innerHTML = ''; // Clear previous tree
+    folderTreeView.innerHTML = '<p class="text-muted small">Loading tree...</p>'; // Loading indicator
 
-    if (isAllFacilitiesMode) {
-        // --- Render Combined Tree for All Facilities ---
-        console.log("Rendering combined tree view for ALL facilities...");
-        if (!allFacilitiesData || allFacilitiesData.length === 0) {
-            console.warn("No data available for all facilities mode.");
-            containerElement.innerHTML = '<p class="text-muted small">No facilities found or data not loaded.</p>';
-            return;
+    try {
+        // Fetch top-level items (parentId === 'root') using the new API
+        console.log("Fetching root items for tree view...");
+        const response = await fetch(`/api/doc_items?parentId=root`);
+        if (!response.ok) {
+             throw new Error(`Failed to fetch root items: ${response.statusText}`);
+        }
+        const rootItems = await response.json();
+        console.log("Root items fetched:", rootItems);
+
+        folderTreeView.innerHTML = ''; // Clear loading message
+
+        const treeUl = buildTreeLevelHtml(rootItems); // Build HTML for the fetched root items
+
+        if (treeUl) {
+            // Adjust top-level padding if needed
+            treeUl.classList.remove('ps-3');
+            folderTreeView.appendChild(treeUl);
+            console.log("Initial tree view rendering complete (root level).");
+        } else {
+            folderTreeView.innerHTML = '<p class="text-muted small">No top-level folders found.</p>';
+            console.log("No root items found to render in tree view.");
         }
 
-        const rootUl = document.createElement('ul');
-        rootUl.className = 'list-unstyled'; // No padding for the absolute root
-
-        // Sort facilities alphabetically by name
-        const sortedFacilities = [...allFacilitiesData].sort((a, b) =>
-            a.properties.name.localeCompare(b.properties.name)
-        );
-
-        sortedFacilities.forEach(facilityFeature => {
-            const facilityId = facilityFeature.properties.id;
-            const facilityName = facilityFeature.properties.name;
-            const facilityFilesystem = facilityFeature.properties.filesystem;
-
-            if (!facilityId || !facilityName) {
-                 console.warn("Skipping facility due to missing ID or name:", facilityFeature.properties);
-                 return; // Skip this facility
-            }
-            if (!facilityFilesystem) {
-                console.warn(`Skipping facility '${facilityName}' (ID: ${facilityId}) due to missing filesystem data.`);
-                // Optionally render a placeholder for this facility
-                // const facilityLi = document.createElement('li');
-                // facilityLi.className = 'tree-node';
-                // facilityLi.innerHTML = `<span class="tree-facility-header d-block p-1 fw-bold text-muted"><i class="fas fa-building fa-fw me-1 text-secondary"></i> ${facilityName} (No documents)</span>`;
-                // rootUl.appendChild(facilityLi);
-                return; // Skip rendering tree for this facility
-            }
-
-            const facilityRootFolderId = `root-${facilityId}`;
-            if (!facilityFilesystem[facilityRootFolderId] || facilityFilesystem[facilityRootFolderId].type !== 'folder') {
-                console.warn(`Root folder '${facilityRootFolderId}' not found or invalid for facility '${facilityName}' (ID: ${facilityId}).`);
-                // Optionally render a placeholder
-                // const facilityLi = document.createElement('li');
-                // facilityLi.className = 'tree-node';
-                // facilityLi.innerHTML = `<span class="tree-facility-header d-block p-1 fw-bold text-muted"><i class="fas fa-building fa-fw me-1 text-secondary"></i> ${facilityName} (Error loading root)</span>`;
-                // rootUl.appendChild(facilityLi);
-                return; // Skip rendering tree for this facility
-            }
-
-            // Create top-level list item for the facility
-            const facilityLi = document.createElement('li');
-            facilityLi.className = 'tree-node mb-2'; // Add margin between facilities
-
-            // Add facility header (not clickable itself)
-            const facilityHeader = document.createElement('span');
-            facilityHeader.className = 'tree-facility-header d-block p-1 fw-bold';
-            facilityHeader.innerHTML = `<i class="fas fa-building fa-fw me-1 text-secondary"></i> ${facilityName}`;
-            facilityLi.appendChild(facilityHeader);
-
-            // Build the folder tree for this facility, starting from its root
-            // Pass currentFolderId for potential highlighting within the sub-tree
-            // Pass facilityId to be added to data attributes
-            const childrenUl = buildTreeHtmlRecursive(facilityRootFolderId, facilityFilesystem, currentFolderId, facilityId);
-            if (childrenUl) {
-                // Add indentation for the facility's folder structure
-                childrenUl.classList.remove('ps-3'); // Remove default indent if buildTreeHtmlRecursive adds it
-                childrenUl.classList.add('ps-3'); // Ensure indentation under facility header
-                facilityLi.appendChild(childrenUl);
-            } else {
-                 // Optionally add a note if a facility has a root but no subfolders
-                 const noFoldersNote = document.createElement('p');
-                 noFoldersNote.className = 'text-muted small ps-3';
-                 noFoldersNote.textContent = '(No folders)';
-                 facilityLi.appendChild(noFoldersNote);
-            }
-
-            rootUl.appendChild(facilityLi);
-        });
-
-        containerElement.appendChild(rootUl);
-        console.log("Combined tree view rendering complete.");
-
-    } else {
-        // --- Render Tree for Single Selected Facility ---
-        console.log("Rendering tree view for single facility:", currentSelectedFacilityId);
-        if (!filesystemData || !rootFolderId) {
-            console.error("Missing data for single facility tree view rendering.");
-            containerElement.innerHTML = '<p class="text-danger small">Error loading folder tree data.</p>';
-            return;
+    } catch (error) {
+        console.error("Error rendering tree view:", error);
+        folderTreeView.innerHTML = '<p class="text-danger small">Error loading folder tree.</p>';
+        // Avoid showing generic error if specific one exists
+        if (!errorMessageDiv || errorMessageDiv.textContent === '') {
+             showError("Failed to load folder tree.");
         }
-
-        const rootFolderData = filesystemData[rootFolderId];
-        if (!rootFolderData || rootFolderData.type !== 'folder') {
-             console.error("Root folder data invalid for single facility:", rootFolderId);
-             containerElement.innerHTML = '<p class="text-danger small">Could not load root folder.</p>';
-             return;
-        }
-
-        // Create the top-level container for the root folder itself
-        const rootUl = document.createElement('ul');
-        rootUl.className = 'list-unstyled'; // No padding for the absolute root
-
-        const rootLi = document.createElement('li');
-        rootLi.className = 'tree-node';
-
-        const isActive = rootFolderId === currentFolderId;
-        const rootLink = document.createElement('a');
-        rootLink.href = '#';
-        rootLink.dataset.folderId = rootFolderId;
-        // Add facilityId for single facility mode root as well
-        if (currentSelectedFacilityId && currentSelectedFacilityId !== 'ALL') {
-             rootLink.dataset.facilityId = currentSelectedFacilityId;
-        }
-        rootLink.className = `tree-link d-block p-1 rounded ${isActive ? 'active bg-primary text-white' : 'text-dark'}`;
-        rootLink.innerHTML = `<i class="fas fa-home fa-fw me-1 ${isActive ? '' : 'text-warning'}"></i> Root`; // Use Home icon for root
-
-        rootLi.appendChild(rootLink);
-
-        // Build the rest of the tree recursively starting from the root's children
-        // Pass facilityId for single facility mode as well
-        const childrenUl = buildTreeHtmlRecursive(rootFolderId, filesystemData, currentFolderId, currentSelectedFacilityId);
-        if (childrenUl) {
-            rootLi.appendChild(childrenUl);
-        }
-
-        rootUl.appendChild(rootLi);
-        containerElement.appendChild(rootUl);
-        console.log("Single facility tree view rendering complete.");
     }
 }
 
@@ -714,104 +544,48 @@ function handleItemClick(event) {
     }
 }
 
-function handleFolderClick(folderId, facilityIdFromClick = null) { // Added facilityIdFromClick
-    console.log("Navigating to folder:", folderId, "Facility context:", facilityIdFromClick || currentSelectedFacilityId);
+// Handles clicks on folders in tree view, breadcrumbs, or main content (if folders shown there)
+async function handleFolderClick(folderId) { // Made async
+    console.log("Navigating to folder:", folderId);
 
-    let filesystemToUse = null;
-    let facilityIdForContext = null;
-    let facilityNameForContext = null;
-    let rootIdForTreeRender = null;
-
-    if (isAllFacilitiesMode) {
-        // --- All Facilities Mode ---
-        if (!facilityIdFromClick) {
-            console.error("Facility ID missing in click handler for 'All Facilities' mode.");
-            showError("Cannot determine facility context.");
-            return;
-        }
-        facilityIdForContext = facilityIdFromClick;
-        const facilityData = allFacilitiesData?.find(f => f.properties.id === facilityIdForContext);
-
-        if (!facilityData || !facilityData.properties || !facilityData.properties.filesystem) {
-            console.error("Could not find facility data or filesystem for ID:", facilityIdForContext);
-            showError("Error finding facility data.");
-            return;
-        }
-        filesystemToUse = facilityData.properties.filesystem;
-        facilityNameForContext = facilityData.properties.name;
-        // Update the global state to reflect the facility context of the clicked folder
-        currentSelectedFacilityId = facilityIdForContext;
-        currentFacilityName = facilityNameForContext;
-        rootIdForTreeRender = null; // Tree re-render in 'ALL' mode doesn't need specific root/fs
-
-    } else {
-        // --- Single Facility Mode ---
-        filesystemToUse = currentFilesystemData;
-        facilityIdForContext = currentSelectedFacilityId; // Already set
-        facilityNameForContext = currentFacilityName; // Already set
-        rootIdForTreeRender = `root-${facilityIdForContext}`;
-
-        if (!filesystemToUse) {
-             console.error("Filesystem data is missing for single facility mode.");
-             showError("Facility data not loaded correctly.");
-             return;
-        }
-    }
-
-    // Validate the clicked folder within the determined filesystem
-    if (!filesystemToUse[folderId] || filesystemToUse[folderId].type !== 'folder') {
-        console.error("Invalid folder ID clicked within its filesystem context:", folderId);
-        showError("Cannot navigate to invalid folder.");
+    if (!folderId) {
+        console.warn("handleFolderClick called with invalid folderId");
         return;
     }
 
-    // Update the current folder ID
+    // Update the current folder state
     currentFolderId = folderId;
 
-    // Update the main section title (especially useful when switching context in 'ALL' mode)
-    if(selectedFacilityNameElement) {
-        selectedFacilityNameElement.textContent = `Files for: ${facilityNameForContext}`;
-    }
+    // Use Promise.all to run fetches concurrently
+    await Promise.all([
+        fetchAndRenderFolderContents(currentFolderId), // Fetch and render contents
+        renderBreadcrumbs(currentFolderId), // Render breadcrumbs
+        renderTreeView() // Re-render tree to update highlighting
+                         // Note: Highlighting logic might need adjustment later
+    ]);
+    console.log(`Navigation and rendering for folder ${folderId} complete.`);
 
-
-    // Render main content and breadcrumbs using the correct filesystem
-    renderBreadcrumbs(currentFolderId, filesystemToUse, facilityNameForContext); // Pass filesystem & name
-    renderFolderContents(currentFolderId, filesystemToUse); // Pass filesystem
-
-    // Re-render tree view to update active state
-    if (folderTreeView) {
-         if (isAllFacilitiesMode) {
-             // Re-render combined tree (uses global state: allFacilitiesData, currentFolderId)
-             renderTreeView(null, null, folderTreeView);
-         } else {
-             // Re-render single tree
-             if (filesystemToUse && rootIdForTreeRender) {
-                 renderTreeView(filesystemToUse, rootIdForTreeRender, folderTreeView);
-             }
-         }
-    }
+    // Remove facility-specific title update
+    // if(selectedFacilityNameElement) { ... }
 }
 
 async function handleFileClick(fileId) {
     console.log("File clicked:", fileId);
-     if (!currentSelectedFacilityId || !currentFilesystemData || !currentFilesystemData[fileId] || currentFilesystemData[fileId].type !== 'file') {
-        console.error("Invalid file ID clicked or missing context:", fileId);
-        showError("Cannot get file link.");
-        return;
-    }
-    const fileData = currentFilesystemData[fileId];
+    // Removed validation using old state variables
 
-    // Show loading indicator?
-    showSuccess(`Getting download link for ${fileData.name}...`);
+    // Show loading indicator
+    // We don't have the filename readily available here anymore without another fetch,
+    // so use a generic message or fetch item details first if name is needed.
+    showSuccess(`Getting download link...`);
     showError('');
 
     try {
-        // Use the new API endpoint
-        const response = await fetch(`/api/facilities/${currentSelectedFacilityId}/files/${fileId}/url`);
+        // Use the new API endpoint for doc_items
+        const response = await fetch(`/api/doc_items/${fileId}/download-url`);
         const result = await response.json();
         if (response.ok && result.url) {
             showSuccess(''); // Clear loading message
-            window.open(result.url, '_blank');
+            window.open(result.url, '_blank'); // Open the signed URL
         } else {
             throw new Error(result.message || `Failed to get download URL (Status: ${response.status})`);
         }
@@ -827,27 +601,81 @@ function handleBreadcrumbClick(event) {
     if (target && target.dataset.folderId) {
         event.preventDefault();
         const folderId = target.dataset.folderId;
-        const facilityId = target.dataset.facilityId; // Get facility ID from breadcrumb link (might be undefined)
-        console.log("Breadcrumb clicked, navigating to folder:", folderId, "Facility ID:", facilityId);
-        // Pass facilityId (will be null/undefined if not in 'All Facilities' mode or clicking root)
-        handleFolderClick(folderId, facilityId);
+        console.log("Breadcrumb clicked, navigating to folder:", folderId);
+        handleFolderClick(folderId); // Call simplified handler
     }
 }
 
-function handleTreeViewClick(event) {
-    const target = event.target;
-    // Example: Find the closest element with a folder ID (adjust selector as needed)
-    const folderLink = target.closest('[data-folder-id]');
+// Fetches and renders a level of the tree into a target UL element
+async function fetchAndRenderTreeLevel(folderId, targetUlElement) {
+     if (!targetUlElement) return;
+     console.log(`Fetching tree level for parent: ${folderId}`);
+     targetUlElement.innerHTML = '<li class="text-muted small ps-1">Loading...</li>'; // Show loading inside UL
 
-    if (folderLink && folderLink.dataset.folderId) {
+     try {
+        const response = await fetch(`/api/doc_items?parentId=${encodeURIComponent(folderId)}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch children: ${response.statusText}`);
+        }
+        const items = await response.json();
+        targetUlElement.innerHTML = ''; // Clear loading
+
+        const childrenHtmlUl = buildTreeLevelHtml(items); // Build the HTML UL for the children
+        if (childrenHtmlUl && childrenHtmlUl.children.length > 0) {
+             // Append the children LI elements directly to the target UL
+             // This avoids nested ULs from buildTreeLevelHtml itself
+             Array.from(childrenHtmlUl.children).forEach(li => targetUlElement.appendChild(li));
+        } else {
+            targetUlElement.innerHTML = '<li class="text-muted small ps-1">(Empty)</li>'; // Indicate empty folder
+        }
+     } catch (error) {
+         console.error(`Error fetching tree level for ${folderId}:`, error);
+         targetUlElement.innerHTML = '<li class="text-danger small ps-1">Error loading</li>';
+     }
+}
+
+// Handles clicks within the tree view (navigation and expand/collapse)
+async function handleTreeViewClick(event) { // Made async
+    const target = event.target;
+    const toggleLink = target.closest('a.expand-toggle');
+    const folderLink = target.closest('a.tree-link');
+
+    if (toggleLink) {
+        // --- Handle Expand/Collapse ---
+        event.preventDefault();
+        const folderId = toggleLink.dataset.folderId;
+        const parentLi = toggleLink.closest('li.tree-node');
+        const childrenUl = parentLi?.querySelector(`ul[data-parent-id="${folderId}"]`);
+        const icon = toggleLink.querySelector('i');
+
+        if (!parentLi || !childrenUl || !icon) {
+            console.error("Could not find necessary elements for expand/collapse for folder:", folderId);
+            return;
+        }
+
+        const isExpanded = !childrenUl.classList.contains('d-none');
+
+        if (!isExpanded && childrenUl.children.length === 0) {
+            // If collapsing or already expanded, just toggle visibility
+             childrenUl.classList.toggle('d-none');
+             icon.classList.toggle('fa-chevron-right');
+             icon.classList.toggle('fa-chevron-down');
+        } else {
+             // If expanding and not loaded yet, fetch children
+             await fetchAndRenderTreeLevel(folderId, childrenUl);
+             // Ensure it's visible after loading (might already be if fetch was fast)
+             childrenUl.classList.remove('d-none');
+             icon.classList.remove('fa-chevron-right');
+             icon.classList.add('fa-chevron-down');
+        }
+
+    } else if (folderLink) {
+        // --- Handle Navigation ---
         event.preventDefault();
         const folderId = folderLink.dataset.folderId;
-        const facilityId = folderLink.dataset.facilityId; // Get facility ID
-        console.log("Tree view folder clicked:", folderId, "Facility ID:", facilityId);
-        // Pass both folderId and facilityId (facilityId might be undefined in single mode, handleFolderClick needs to check)
-        handleFolderClick(folderId, facilityId);
+        console.log("Tree view folder link clicked:", folderId);
+        handleFolderClick(folderId); // Navigate
     }
-    // TODO: Add logic for expand/collapse clicks if needed
 }
 
 
@@ -855,8 +683,9 @@ function handleTreeViewClick(event) {
 
 function handleNewFolderClick() {
     console.log("New Folder button clicked. Current Parent:", currentFolderId);
-    if (!currentSelectedFacilityId || !currentFolderId) {
-        showError("Please select a facility and navigate to a folder first.");
+    // Removed facility check, rely only on currentFolderId
+    if (!currentFolderId) {
+        showError("Cannot determine the current folder. Please navigate to a folder first.");
         return;
     }
 
@@ -865,15 +694,25 @@ function handleNewFolderClick() {
         showError("Folder name cannot be empty.");
         return;
     }
+    const cleanName = folderName.trim();
 
     // TODO: Add loading state indication
-    showSuccess(`Creating folder '${folderName}'...`);
+    showSuccess(`Creating folder '${cleanName}'...`);
     showError('');
 
-    fetch(`/api/facilities/${currentSelectedFacilityId}/folders`, {
+    // Prepare data for the new API endpoint
+    const newItemData = {
+        name: cleanName,
+        type: 'folder',
+        parentId: currentFolderId,
+        tags: [] // Add default tags if needed, e.g., based on current filters
+        // Example: if (currentFilterTag) newItemData.tags.push(currentFilterTag);
+    };
+
+    fetch('/api/doc_items', { // Use the new endpoint
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parentId: currentFolderId, name: folderName.trim() })
+        body: JSON.stringify(newItemData)
     })
     .then(async response => {
         if (!response.ok) {
@@ -882,59 +721,16 @@ function handleNewFolderClick() {
         }
         return response.json();
     })
-    .then(result => {
-        console.log("Folder created successfully:", result);
-        showSuccess(`Folder '${folderName}' created successfully.`);
+    .then(createdItem => { // API now returns the created item
+        console.log("Folder created successfully:", createdItem);
+        showSuccess(`Folder '${cleanName}' created successfully.`);
 
-        // Refresh the view by updating local data and re-rendering
-        if (result.updatedFilesystem) {
-            let filesystemForRender = null;
-            let rootIdForTree = null;
+        // Refresh the current folder view by re-fetching its contents
+        fetchAndRenderFolderContents(currentFolderId);
 
-            if (isAllFacilitiesMode) {
-                // Update the specific facility's data within allFacilitiesData
-                const facilityIndex = allFacilitiesData?.findIndex(f => f.properties.id === currentSelectedFacilityId);
-                if (facilityIndex !== -1 && allFacilitiesData) {
-                    allFacilitiesData[facilityIndex].properties.filesystem = result.updatedFilesystem;
-                    filesystemForRender = allFacilitiesData[facilityIndex].properties.filesystem;
-                    console.log(`Updated filesystem for ${currentFacilityName} in allFacilitiesData`);
-                } else {
-                    console.error("Could not find facility in allFacilitiesData to update filesystem.");
-                    // Fallback to refetching all data might be needed here, or show error
-                     showError("Error updating local data. Please refresh.");
-                     return; // Avoid rendering with inconsistent data
-                }
-                // No specific rootId needed for combined tree render
-            } else {
-                // Update single facility data
-                currentFilesystemData = result.updatedFilesystem;
-                filesystemForRender = currentFilesystemData;
-                rootIdForTree = `root-${currentSelectedFacilityId}`;
-                console.log("Updated currentFilesystemData");
-            }
+        // Refresh the tree view to show the new folder
+        renderTreeView(); // Re-render the tree (might only show root level initially)
 
-            // Ensure we have valid data before rendering
-            if (filesystemForRender && currentFolderId) {
-                 renderFolderContents(currentFolderId, filesystemForRender); // Pass updated filesystem
-
-                 // Re-render tree view
-                 if (folderTreeView) {
-                     if (isAllFacilitiesMode) {
-                         renderTreeView(null, null, folderTreeView); // Re-render combined tree
-                     } else if (rootIdForTree) {
-                         renderTreeView(filesystemForRender, rootIdForTree, folderTreeView); // Re-render single tree
-                     }
-                 }
-            } else {
-                 console.error("Filesystem data or current folder ID became invalid after update.");
-                 showError("Error refreshing view after folder creation.");
-            }
-
-        } else {
-            console.warn("API did not return updated filesystem. Falling back to re-fetch.");
-            // Fallback: Re-fetch data (handles both modes)
-            handleFacilitySelection({ target: { value: currentSelectedFacilityId } }); // currentSelectedFacilityId is 'ALL' or specific ID
-        }
     })
     .catch(error => {
         console.error("Error creating folder:", error);
@@ -966,28 +762,66 @@ function handleUploadFileClick() {
         formData.append('parentId', currentFolderId); // Send parent folder ID
 
         try {
-            const response = await fetch(`/api/facilities/${currentSelectedFacilityId}/files`, {
+            // Step 1: Upload file to storage via the old (refactored) endpoint
+            // TODO: Determine the correct facilityId context for the storage path.
+            // This might involve fetching the currentFolderId's details to get its tags,
+            // or traversing up to find a root folder if necessary.
+            // For now, using a placeholder - THIS WILL LIKELY FAIL without proper context.
+            const facilityIdForStorage = 'placeholder-facility-id'; // <<< NEEDS ACTUAL LOGIC
+            if (!facilityIdForStorage) {
+                 throw new Error("Could not determine facility context for storage path.");
+            }
+
+            const storageResponse = await fetch(`/api/facilities/${facilityIdForStorage}/files`, {
                 method: 'POST',
-                // No 'Content-Type' header needed for FormData, browser sets it
                 body: formData
+                // Auth handled by cookie/session
             });
-            if (!response.ok) {
-                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
-                 throw new Error(errorData.message || `Upload failed (Status: ${response.status})`);
+
+            if (!storageResponse.ok) {
+                 const errorData = await storageResponse.json().catch(() => ({ message: storageResponse.statusText }));
+                 throw new Error(errorData.message || `Storage upload failed (Status: ${storageResponse.status})`);
             }
-            const result = await response.json();
-            console.log("File uploaded successfully:", result);
-            showSuccess(`File '${file.name}' uploaded successfully.`);
-             // Refresh the view
-            if (result.updatedFilesystem) {
-                 currentFilesystemData = result.updatedFilesystem;
-                 renderFolderContents(currentFolderId);
-            } else {
-                handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
+            const storageResult = await storageResponse.json();
+            console.log("File stored successfully:", storageResult);
+
+            // Step 2: Create the metadata document in doc_items using the new endpoint
+            showSuccess(`Creating metadata for ${storageResult.name}...`);
+
+            const newItemData = {
+                name: storageResult.name,
+                type: 'file',
+                parentId: storageResult.parentId, // Use parentId passed back from storage endpoint
+                tags: [`facility:${facilityIdForStorage}`], // Add facility tag based on context
+                storagePath: storageResult.storagePath,
+                contentType: storageResult.contentType,
+                size: storageResult.size
+            };
+
+            const createResponse = await fetch('/api/doc_items', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(newItemData)
+                 // Auth handled by cookie/session
+            });
+
+             if (!createResponse.ok) {
+                const errorData = await createResponse.json().catch(() => ({ message: createResponse.statusText }));
+                // Attempt to clean up stored file if metadata creation fails? Difficult.
+                console.error(`Metadata creation failed for ${storageResult.storagePath}, but file was stored.`);
+                throw new Error(errorData.message || `Metadata creation failed (Status: ${createResponse.status})`);
             }
+            const createdItem = await createResponse.json();
+            console.log("Doc item created successfully:", createdItem);
+            showSuccess(`File '${createdItem.name}' uploaded and registered successfully.`);
+
+            // Step 3: Refresh UI
+            fetchAndRenderFolderContents(currentFolderId);
+            renderTreeView(); // Refresh tree
+
         } catch (error) {
-            console.error("Error uploading file:", error);
-            showError(`Error uploading file: ${error.message}`);
+            console.error("Error during file upload process:", error);
+            showError(`Upload failed: ${error.message}`);
             showSuccess(''); // Clear loading message
         }
     };
@@ -996,14 +830,16 @@ function handleUploadFileClick() {
 
 function handleAddLinkClick() {
     console.log("Add Link button clicked. Current Parent:", currentFolderId);
-     if (!currentSelectedFacilityId || !currentFolderId) {
-        showError("Please select a facility and navigate to a folder first.");
+    // Removed facility check
+    if (!currentFolderId) {
+        showError("Cannot determine the current folder. Please navigate to a folder first.");
         return;
     }
+
     // TODO: Implement a proper modal/dialog for adding links
     const url = prompt("Enter the URL:");
-    if (!url || !url.trim().startsWith('http')) {
-        showError("Invalid URL provided.");
+    if (!url || !url.trim().startsWith('http')) { // Basic URL validation
+        showError("Invalid URL provided. Please include http:// or https://");
         return;
     }
     const name = prompt("Enter a name/description for the link:");
@@ -1011,15 +847,26 @@ function handleAddLinkClick() {
         showError("Link name cannot be empty.");
         return;
     }
+    const cleanName = name.trim();
+    const cleanUrl = url.trim();
 
     // TODO: Add loading state indication
-    showSuccess(`Adding link '${name}'...`);
+    showSuccess(`Adding link '${cleanName}'...`);
     showError('');
 
-    fetch(`/api/facilities/${currentSelectedFacilityId}/links`, {
+    // Prepare data for the new API endpoint
+    const newItemData = {
+        name: cleanName,
+        type: 'link',
+        url: cleanUrl,
+        parentId: currentFolderId,
+        tags: [] // Add default tags if needed
+    };
+
+    fetch('/api/doc_items', { // Use the new endpoint
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parentId: currentFolderId, url: url.trim(), name: name.trim() })
+        body: JSON.stringify(newItemData)
     })
     .then(async response => {
         if (!response.ok) {
@@ -1028,16 +875,16 @@ function handleAddLinkClick() {
         }
         return response.json();
     })
-    .then(result => {
-        console.log("Link added successfully:", result);
-        showSuccess(`Link '${name}' added successfully.`);
-        // Refresh the view
-        if (result.updatedFilesystem) {
-             currentFilesystemData = result.updatedFilesystem;
-             renderFolderContents(currentFolderId);
-        } else {
-            handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
-        }
+    .then(createdItem => {
+        console.log("Link added successfully:", createdItem);
+        showSuccess(`Link '${cleanName}' added successfully.`);
+
+        // Refresh the current folder view by re-fetching its contents
+        fetchAndRenderFolderContents(currentFolderId);
+
+        // Refresh the tree view (though links aren't shown there)
+        renderTreeView();
+
     })
     .catch(error => {
         console.error("Error adding link:", error);
@@ -1046,47 +893,62 @@ function handleAddLinkClick() {
     });
 }
 
-function handleRenameClick(itemId) {
+async function handleRenameClick(itemId) { // Made async
     console.log("Rename action clicked for item:", itemId);
-    if (!currentSelectedFacilityId || !currentFilesystemData || !currentFilesystemData[itemId]) {
-        showError("Cannot rename item: context missing.");
+    if (!itemId) {
+        showError("Cannot rename item: ID missing.");
         return;
     }
-    const item = currentFilesystemData[itemId];
-    const currentName = item.name;
+
+    // Fetch current item details to get the current name for the prompt
+    let currentName = '';
+    try {
+        const response = await fetch(`/api/doc_items/${itemId}`);
+        if (!response.ok) throw new Error('Failed to fetch item details for rename.');
+        const itemData = await response.json();
+        currentName = itemData.name;
+    } catch (fetchError) {
+        console.error("Error fetching item details before rename:", fetchError);
+        showError(`Could not get current item details: ${fetchError.message}`);
+        return;
+    }
 
     const newName = prompt(`Enter new name for '${currentName}':`, currentName);
-    if (!newName || newName.trim().length === 0 || newName.trim() === currentName) {
+    const cleanNewName = newName?.trim(); // Use optional chaining and trim
+
+    if (!cleanNewName || cleanNewName === currentName) {
         showError("Invalid or unchanged name provided.");
         return;
     }
 
     // TODO: Add loading state
-    showSuccess(`Renaming '${currentName}' to '${newName}'...`);
+    showSuccess(`Renaming '${currentName}' to '${cleanNewName}'...`);
     showError('');
 
-    fetch(`/api/facilities/${currentSelectedFacilityId}/items/${itemId}`, {
+    // Call the new PUT endpoint for doc_items
+    fetch(`/api/doc_items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'rename', newName: newName.trim() })
+        body: JSON.stringify({ name: cleanNewName }) // Only send the name field
     })
     .then(async response => {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Failed to rename item (Status: ${response.status})`);
         }
-        return response.json();
+        return response.json(); // API returns the updated item
     })
-    .then(result => {
-        console.log("Item renamed successfully:", result);
-        showSuccess(`Item renamed to '${newName}' successfully.`);
-        // Refresh view
-        if (result.updatedFilesystem) {
-             currentFilesystemData = result.updatedFilesystem;
-             renderFolderContents(currentFolderId); // Re-render current folder
-        } else {
-            handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
-        }
+    .then(updatedItem => {
+        console.log("Item renamed successfully:", updatedItem);
+        showSuccess(`Item renamed to '${updatedItem.name}' successfully.`);
+
+        // Refresh the current folder view by re-fetching
+        // Need parentId to refresh correctly. Get it from the updated item.
+        const parentIdToRefresh = updatedItem.parentId || currentFolderId || 'root'; // Fallback needed if parentId isn't returned?
+        fetchAndRenderFolderContents(parentIdToRefresh);
+
+        // Refresh the tree view
+        renderTreeView();
     })
     .catch(error => {
         console.error("Error renaming item:", error);
@@ -1095,26 +957,113 @@ function handleRenameClick(itemId) {
     });
 }
 
-function handleMoveClick(itemId) {
+async function handleMoveClick(itemId) { // Made async
     console.log("Move action clicked for item:", itemId);
-    // TODO: Implement a folder selection modal/UI
-    alert("Move functionality requires a folder selection UI (Not Implemented Yet).");
-    // Example steps:
-    // 1. Show modal to select target folder.
-    // 2. Get target folder ID (`newParentId`).
-    // 3. Call API: fetch(`/api/facilities/${currentSelectedFacilityId}/items/${itemId}`, { method: 'PUT', ..., body: JSON.stringify({ action: 'move', newParentId: newParentId }) })
-    // 4. Refresh view on success.
-}
-
-function handleDeleteClick(itemId) {
-    console.log("Delete action clicked for item:", itemId);
-     if (!currentSelectedFacilityId || !currentFilesystemData || !currentFilesystemData[itemId]) {
-        showError("Cannot delete item: context missing.");
+    if (!itemId) {
+        showError("Cannot move item: ID missing.");
         return;
     }
-    const item = currentFilesystemData[itemId];
-    const itemType = item.type;
-    const itemName = item.name;
+
+    // TODO: Replace prompt with a proper folder selection UI (e.g., a modal with a tree view)
+    // This UI would likely need to fetch folder data using GET /api/doc_items?parentId=...
+    const newParentId = prompt("Enter the ID of the destination folder (or 'root'):");
+
+    if (!newParentId || !newParentId.trim()) {
+        showError("Invalid destination folder ID provided.");
+        return;
+    }
+    const cleanNewParentId = newParentId.trim();
+
+    // Fetch current item details to get its current parentId for refresh logic
+    let oldParentId = null;
+     try {
+        const response = await fetch(`/api/doc_items/${itemId}`);
+        if (!response.ok) throw new Error('Failed to fetch item details before move.');
+        const itemData = await response.json();
+        oldParentId = itemData.parentId;
+    } catch (fetchError) {
+        console.error("Error fetching item details before move:", fetchError);
+        showError(`Could not get current item details: ${fetchError.message}`);
+        return;
+    }
+
+    if (!oldParentId) {
+         showError("Could not determine the item's current parent.");
+         return; // Or handle root item case if needed
+    }
+
+
+    // TODO: Add loading state
+    showSuccess(`Moving item ${itemId} to ${cleanNewParentId}...`);
+    showError('');
+
+    // Call the new PUT endpoint for doc_items
+    fetch(`/api/doc_items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: cleanNewParentId }) // Only send the parentId field
+    })
+    .then(async response => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to move item (Status: ${response.status})`);
+        }
+        return response.json(); // API returns the updated item
+    })
+    .then(updatedItem => {
+        console.log("Item moved successfully:", updatedItem);
+        showSuccess(`Item moved successfully.`);
+
+        // Refresh the *old* parent folder view and the tree view
+        fetchAndRenderFolderContents(oldParentId); // Refresh where it came from
+        renderTreeView(); // Refresh tree (might show item in new place if expanded)
+
+    })
+    .catch(error => {
+        console.error("Error moving item:", error);
+        showError(`Error moving item: ${error.message}`);
+        showSuccess('');
+    });
+}
+
+async function handleDeleteClick(itemId) { // Made async
+    console.log("Delete action clicked for item:", itemId);
+    if (!itemId) {
+        showError("Cannot delete item: ID missing.");
+        return;
+    }
+
+    // Fetch item details first for confirmation message
+    let itemType = 'item';
+    let itemName = itemId;
+    let parentId = null;
+    try {
+        const response = await fetch(`/api/doc_items/${itemId}`);
+        if (!response.ok) {
+             // If item not found, maybe it was already deleted? Silently ignore or show specific message.
+             if (response.status === 404) {
+                  console.warn(`Item ${itemId} not found for deletion confirmation.`);
+                  showError(`Item not found.`);
+                  return;
+             }
+             throw new Error('Failed to fetch item details for deletion confirmation.');
+        }
+        const itemData = await response.json();
+        itemType = itemData.type || 'item';
+        itemName = itemData.name || itemId;
+        parentId = itemData.parentId; // Store parentId for refresh
+    } catch (fetchError) {
+        console.error("Error fetching item details before delete:", fetchError);
+        showError(`Could not get item details: ${fetchError.message}`);
+        return; // Don't proceed if we can't confirm
+    }
+
+     if (!parentId) {
+         // This check might be redundant if API prevents root deletion, but good safety measure
+         showError("Cannot delete this item (it might be a root item).");
+         return;
+     }
+
 
     const confirmationMessage = itemType === 'folder'
         ? `Are you sure you want to delete the folder '${itemName}' and ALL its contents? This cannot be undone.`
@@ -1128,8 +1077,10 @@ function handleDeleteClick(itemId) {
     showSuccess(`Deleting ${itemType} '${itemName}'...`);
     showError('');
 
-    fetch(`/api/facilities/${currentSelectedFacilityId}/items/${itemId}`, {
+    // Call the new DELETE endpoint for doc_items
+    fetch(`/api/doc_items/${itemId}`, {
         method: 'DELETE'
+        // Auth handled by cookie/session
     })
      .then(async response => {
         // Check for 200 OK or 204 No Content for successful deletion
@@ -1137,17 +1088,16 @@ function handleDeleteClick(itemId) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Failed to delete item (Status: ${response.status})`);
         }
-        // No JSON body expected on successful DELETE usually
-        return null;
+        return null; // No JSON body expected on successful DELETE
     })
     .then(() => {
         console.log("Item deleted successfully:", itemId);
         showSuccess(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} '${itemName}' deleted successfully.`);
-        // Refresh view - IMPORTANT: Need to re-fetch data as filesystem structure changed
-        // Re-selecting the facility triggers a full refresh
-        handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
-        // A more optimized approach would be to update the local state and re-render,
-        // but re-fetching is safer after deletion.
+
+        // Refresh the parent folder view and the tree view
+        fetchAndRenderFolderContents(parentId); // Refresh the parent folder
+        renderTreeView(); // Refresh the tree
+
     })
     .catch(error => {
         console.error("Error deleting item:", error);
