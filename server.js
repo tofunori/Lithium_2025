@@ -10,15 +10,19 @@ const port = 3000;
 const dataFilePath = path.join(__dirname, 'data', 'facilities.json');
 
 // --- Firebase Initialization ---
-// IMPORTANT: Replace with the actual path to your service account key file
-// Ensure this file is in your .gitignore and kept secure!
-const serviceAccountPath = path.join(__dirname, 'config', 'leafy-bulwark-442103-e7-firebase-adminsdk-fbsvc-31a9c3e896.json');
-const serviceAccount = require(serviceAccountPath);
+// --- Firebase Initialization using Environment Variables ---
+// IMPORTANT: Ensure FIREBASE_SERVICE_ACCOUNT and FIREBASE_STORAGE_BUCKET environment variables are set in Vercel.
+const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+const firebaseBucketName = process.env.FIREBASE_STORAGE_BUCKET || 'leafy-bulwark-442103-e7.firebasestorage.app'; // Fallback if not set
 
-// IMPORTANT: Replace with your actual Firebase Storage bucket name
-const firebaseBucketName = 'leafy-bulwark-442103-e7.firebasestorage.app';
+if (!serviceAccountJson) {
+    console.error("FATAL ERROR: FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+    // Optionally exit or handle gracefully depending on whether Firebase is critical at startup
+    // process.exit(1);
+}
 
 try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         storageBucket: firebaseBucketName
