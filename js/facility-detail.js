@@ -55,6 +55,9 @@ window.initFacilityDetailPage = async function() {
         const facilityMapContainer = mainContent.querySelector('#facilityMap');
         const facilityAddressMapEl = mainContent.querySelector('#facilityAddressMap');
         const technologyDescriptionEl = mainContent.querySelector('#technologyDescription');
+        const facilityCompanyEl = mainContent.querySelector('#facilityCompany'); // Added
+        const facilityRegionEl = mainContent.querySelector('#facilityRegion'); // Added
+        const facilityCountryEl = mainContent.querySelector('#facilityCountry'); // Added
 
         // Header
         if(facilityNameEl) facilityNameEl.textContent = props.name || 'N/A';
@@ -84,6 +87,7 @@ window.initFacilityDetailPage = async function() {
             const startedEl = techSpecsList.querySelector('[data-key="yearStarted"]');
             const feedstockEl = techSpecsList.querySelector('[data-key="feedstock"]');
             const productsEl = techSpecsList.querySelector('[data-key="products"]');
+            const fundingSourceEl = techSpecsList.querySelector('[data-key="fundingSource"]'); // Added
 
             if(sizeEl) sizeEl.textContent = props.size || 'Not specified';
             if(capacityEl) capacityEl.textContent = props.capacity || 'Not specified';
@@ -91,6 +95,7 @@ window.initFacilityDetailPage = async function() {
             if(startedEl) startedEl.textContent = props.yearStarted || props.yearPlanned || 'Not specified';
             if(feedstockEl) feedstockEl.textContent = props.feedstock || 'Not specified';
             if(productsEl) productsEl.textContent = props.products || 'Not specified';
+            if(fundingSourceEl) fundingSourceEl.textContent = props.fundingSource || 'Not specified'; // Added
         }
 
         // Timeline
@@ -110,6 +115,7 @@ window.initFacilityDetailPage = async function() {
         }
 
          // Company Info
+         if(facilityCompanyEl) facilityCompanyEl.textContent = props.company || 'N/A'; // Added
          if(companyLogo) {
              if (props.companyLogo && props.companyLogo !== 'images/logos/default.png') {
                  companyLogo.src = `../${props.companyLogo}`;
@@ -131,6 +137,8 @@ window.initFacilityDetailPage = async function() {
 
         // Location Map
         if(facilityAddressMapEl) facilityAddressMapEl.textContent = props.address || 'N/A';
+        if(facilityRegionEl) facilityRegionEl.textContent = props.region || 'N/A'; // Added
+        if(facilityCountryEl) facilityCountryEl.textContent = props.country || 'N/A'; // Added
         if (facilityMapContainer) {
             // Ensure Leaflet is loaded (it should be included in the HTML)
              if (typeof L === 'undefined') {
@@ -161,6 +169,69 @@ window.initFacilityDetailPage = async function() {
 
          // Processing Technology Description
          if(technologyDescriptionEl) technologyDescriptionEl.innerHTML = props.technologyDetails || `Details about ${props.technology || 'the processing technology'}.`;
+    }
+
+    // --- Content Swapping Navigation Setup ---
+    function setupContentSwappingNav() {
+        const navLinks = mainContent.querySelectorAll('#page-navigation .nav-link[data-target]');
+        const contentSections = mainContent.querySelectorAll('.content-section');
+
+        if (!navLinks.length || !contentSections.length) {
+            console.warn("Navigation links or content sections not found for content swapping.");
+            return;
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('data-target'); // Should be like "#content-overview"
+                const targetSection = mainContent.querySelector(targetId);
+
+                if (!targetSection) {
+                    console.error(`Target content section ${targetId} not found.`);
+                    return;
+                }
+
+                // Remove active class from all links and sections
+                navLinks.forEach(l => l.classList.remove('active'));
+                contentSections.forEach(s => s.classList.remove('active'));
+
+                // Add active class to the clicked link and target section
+                link.classList.add('active');
+                targetSection.classList.add('active');
+
+                // Special handling for map: invalidate size if it's the target
+                if (targetId === '#content-location' && facilityMap) {
+                    console.log("Invalidating map size...");
+                    // Delay slightly to ensure the container is fully visible
+                    setTimeout(() => {
+                        facilityMap.invalidateSize();
+                        // Optional: Pan back to marker if needed
+                        // if (currentFacilityData?.geometry?.coordinates) {
+                        //     facilityMap.panTo([currentFacilityData.geometry.coordinates[1], currentFacilityData.geometry.coordinates[0]]);
+                        // }
+                    }, 100); // 100ms delay, adjust if needed
+                }
+            });
+        });
+
+        // Ensure the default active link corresponds to the default active section
+        const defaultActiveSection = mainContent.querySelector('.content-section.active');
+        if (defaultActiveSection) {
+            const defaultTargetId = `#${defaultActiveSection.id}`;
+            const defaultActiveLink = mainContent.querySelector(`#page-navigation .nav-link[data-target="${defaultTargetId}"]`);
+            navLinks.forEach(l => l.classList.remove('active')); // Clear any static active classes
+            if (defaultActiveLink) {
+                defaultActiveLink.classList.add('active');
+            } else {
+                // Fallback: activate the first link if default section's link not found
+                if (navLinks.length > 0) navLinks[0].classList.add('active');
+            }
+        } else {
+             // Fallback: activate the first link and section if none are active by default
+             if (navLinks.length > 0) navLinks[0].classList.add('active');
+             if (contentSections.length > 0) contentSections[0].classList.add('active');
+        }
     }
 
     // --- Edit Mode Functions ---
@@ -308,6 +379,7 @@ window.initFacilityDetailPage = async function() {
          }
         currentFacilityData = await response.json();
         populatePage(currentFacilityData);
+        setupContentSwappingNav(); // Setup nav for content swapping
 
         // Setup Edit/Save buttons based on login status
         setupEditSaveListeners(isLoggedIn);

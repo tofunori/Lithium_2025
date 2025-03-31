@@ -20,18 +20,12 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="../css/styles.css"> <!-- Correct relative path -->
     <style>
-        /* Styles for edit mode (keep for facility-detail.js) */
-        .editable {
-            border: 1px dashed #0d6efd;
-            padding: 2px 5px;
-            cursor: text;
-            background-color: #e9f5ff;
-        }
-        .facility-detail-card h4 + ul li strong::after {
-             content: ': '; /* Ensure colon for list items */
-        }
-         /* Hide save button initially */
-        #saveButton { display: none; }
+        /* Minimal inline styles needed for basic functionality before JS loads */
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        #saveButton { display: none; } /* Hide save initially */
+        /* Edit mode styles can remain if needed by JS */
+         .editable { border: 1px dashed #0d6efd; padding: 2px 5px; cursor: text; background-color: #e9f5ff; }
     </style>
 </head>
 <body>
@@ -42,17 +36,8 @@
         <p id="page-subtitle-main" style="display: none;">Facility Details</p> <!-- Generic subtitle -->
 
         <!-- Main Content Area -->
-        <main id="main-content" data-facility-id="redwood-southcarolina"> <!-- Added facility ID -->
-            <!-- Unique Header Buttons -->
-            <div class="d-flex justify-content-end align-items-center mb-4 mt-4"> <!-- Adjusted: Removed back button, justify-content-end -->
-                 <div>
-                     <button id="editButton" class="btn btn-secondary" style="display: none;"><i class="fas fa-edit"></i> Edit</button> <!-- Hide initially -->
-                     <button id="saveButton" class="btn btn-success" style="display: none;"><i class="fas fa-save"></i> Save Changes</button>
-                 </div>
-            </div>
-
-            <!-- Original Content (Lines 47-149 from original file) -->
-            <!-- Header - Content set dynamically -->
+        <main id="main-content" data-facility-id="redwood-southcarolina"> <!-- UPDATED facility ID -->
+            <!-- Header -->
             <div id="facilityHeader" class="facility-header">
                 <div class="facility-header-content">
                     <h1 id="facilityName">Loading...</h1>
@@ -61,98 +46,133 @@
                 </div>
             </div>
 
+            <!-- New Left-Nav, Right-Content Layout -->
             <div class="row mt-4">
-                <div class="col-md-8">
-                    <!-- Overview - Content set dynamically -->
-                    <div class="facility-detail-card">
-                        <h3>Facility Overview</h3>
-                        <div id="facilityDescription" class="editable-section">Loading description...</div>
+                <!-- Left Navigation Column -->
+                <div class="col-md-3">
+                    <div id="sticky-nav-placeholder">
+                         <div class="card shadow-sm">
+                             <div class="card-body p-2">
+                                 <ul id="page-navigation" class="nav flex-column">
+                                     <!-- Links updated for content swapping and grouping -->
+                                     <li class="nav-item"><a class="nav-link active" href="#" data-target="#content-overview">Overview</a></li>
+                                     <li class="nav-item"><a class="nav-link" href="#" data-target="#content-technical">Technical Details</a></li> <!-- Grouped Link -->
+                                     <li class="nav-item"><a class="nav-link" href="#" data-target="#content-timeline">Timeline</a></li>
+                                     <li class="nav-item"><a class="nav-link" href="#" data-target="#content-location">Location</a></li>
+                                     <li class="nav-item"><a class="nav-link" href="#" data-target="#content-company">Company Info</a></li>
+                                     <li class="nav-item"><a class="nav-link" href="#" data-target="#content-significance">Regional Significance</a></li>
+                                     <li class="nav-item"><a class="nav-link" href="#" data-target="#content-related">Related Facilities</a></li>
+                                 </ul>
+                             </div>
+                         </div>
                     </div>
-
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                             <!-- Specs - Content set dynamically -->
-                            <div class="facility-detail-card">
-                                <h4>Technical Specifications</h4>
-                                <ul id="techSpecsList" class="list-unstyled editable-section">
-                                     <!-- Map static labels to potential JSON keys -->
-                                     <li><strong>Processing Capacity:</strong> <span data-key="capacity">Loading...</span></li>
-                                     <li><strong>Technology:</strong> <span data-key="technology">Loading...</span></li>
-                                     <li><strong>Planned Start:</strong> <span data-key="yearPlanned">Loading...</span></li>
-                                     <li><strong>Feedstock:</strong> <span data-key="feedstock">Loading...</span></li>
-                                     <li><strong>Output:</strong> <span data-key="products">Loading...</span></li>
-                                     <li><strong>Facility Size:</strong> <span data-key="size">Loading...</span></li>
-                                     <li><strong>Investment:</strong> <span data-key="investment">Loading...</span></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <!-- Env Impact - Kept static for now -->
-                            <div class="facility-detail-card">
-                                <h4>Environmental Impact</h4>
-                                <ul class="list-unstyled">
-                                     <li><strong>GHG Reduction:</strong> 80-90% lower carbon emissions than primary mining</li>
-                                     <li><strong>Water Management:</strong> Advanced closed-loop water recycling systems</li>
-                                     <li><strong>Waste Diversion:</strong> Near-zero waste to landfill target</li>
-                                     <li><strong>Resource Recovery:</strong> >95% recovery rate for critical materials</li>
-                                     <li><strong>Energy Use:</strong> Renewable energy integration planned</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Timeline - Content set dynamically -->
-                    <div class="facility-detail-card mt-4">
-                        <h4>Development Timeline</h4>
-                        <div id="facilityTimeline" class="timeline editable-section">
-                            <p>Loading timeline...</p>
-                        </div>
+                    <!-- Moved Edit/Save Buttons -->
+                    <div class="mt-3">
+                        <button id="editButton" class="btn btn-secondary btn-sm w-100 mb-2" style="display: none;"><i class="fas fa-edit"></i> Edit</button>
+                        <button id="saveButton" class="btn btn-success btn-sm w-100" style="display: none;"><i class="fas fa-save"></i> Save Changes</button>
                     </div>
                 </div>
 
-                <div class="col-md-4">
-                     <!-- Company Info - Content set dynamically -->
-                    <div class="facility-detail-card">
-                        <h4>Company Information</h4>
-                        <div class="text-center mb-3">
-                            <img id="companyLogo" src="" alt="Company Logo" class="img-fluid" style="max-height: 80px; display: none;"> <!-- Hide initially -->
-                        </div>
-                        <p id="companyDescription">Loading company info...</p>
-                        <a id="companyWebsite" href="#" target="_blank" class="btn btn-outline-primary btn-sm mt-2" style="display: none;"><i class="fas fa-external-link-alt"></i> Company Website</a>
+                <!-- Right Content Column -->
+                <div class="col-md-9">
+                    <!-- Content Sections (Wrapped) -->
+                    <div id="content-overview" class="content-section active"> <!-- Show overview by default -->
+                        <section class="facility-detail-section">
+                            <h3 class="section-title">Facility Overview</h3>
+                            <div id="facilityDescription" class="editable-section">Loading description...</div>
+                        </section>
                     </div>
 
-                    <!-- Location Map - Content set dynamically -->
-                    <div class="facility-detail-card mt-4">
-                        <h4>Location</h4>
-                        <div id="facilityMap" style="height: 250px;"></div>
-                        <p class="mt-2">
-                            <i class="fas fa-map-marker-alt"></i> <span id="facilityAddressMap">Loading address...</span>
-                        </p>
+                    <!-- Grouped Technical Details Section -->
+                    <div id="content-technical" class="content-section">
+                        <!-- Specifications -->
+                        <section id="section-specs" class="facility-detail-section">
+                            <h4 class="section-title">Technical Specifications</h4>
+                            <ul id="techSpecsList" class="list-unstyled editable-section">
+                                 <li><strong>Processing Capacity:</strong> <span data-key="capacity">Loading...</span></li>
+                                 <li><strong>Technology:</strong> <span data-key="technology">Loading...</span></li>
+                                 <li><strong>Operational Since:</strong> <span data-key="yearStarted">Loading...</span></li>
+                                 <li><strong>Feedstock:</strong> <span data-key="feedstock">Loading...</span></li>
+                                 <li><strong>Output:</strong> <span data-key="products">Loading...</span></li>
+                                 <li><strong>Facility Size:</strong> <span data-key="size">Loading...</span></li>
+                                 <li><strong>Funding Source:</strong> <span data-key="fundingSource">Loading...</span></li>
+                            </ul>
+                        </section>
+
+                        <!-- Environmental Impact -->
+                        <section id="section-impact" class="facility-detail-section">
+                             <h4 class="section-title">Environmental Impact</h4>
+                             <ul class="list-unstyled">
+                                  <!-- Static content for now, update if data becomes available -->
+                                   <li><strong>GHG Reduction:</strong> 80-90% lower carbon emissions than primary mining</li>
+                                   <li><strong>Water Management:</strong> Closed-loop water recycling systems</li>
+                                   <li><strong>Waste Diversion:</strong> Near-zero waste to landfill operations</li>
+                                   <li><strong>Resource Recovery:</strong> >95% recovery rate for critical materials</li>
+                                   <li><strong>Energy Use:</strong> Powered by renewable energy sources</li>
+                             </ul>
+                        </section>
+
+                        <!-- Processing Technology -->
+                        <section id="section-technology" class="facility-detail-section">
+                            <h4 class="section-title">Processing Technology</h4>
+                            <div id="technologyDescription" class="editable-section">Loading technology details...</div>
+                        </section>
+                    </div> <!-- End #content-technical -->
+
+                    <div id="content-timeline" class="content-section">
+                        <section class="facility-detail-section">
+                            <h4 class="section-title">Development Timeline</h4>
+                            <div id="facilityTimeline" class="timeline editable-section">
+                                <p>Loading timeline...</p>
+                            </div>
+                        </section>
                     </div>
 
-                    <!-- Processing Tech - Content set dynamically -->
-                     <div class="facility-detail-card mt-4">
-                        <h4>Processing Technology</h4>
-                        <div id="technologyDescription" class="editable-section">Loading technology details...</div>
+                    <div id="content-location" class="content-section">
+                        <section class="facility-detail-section">
+                            <h4 class="section-title">Location</h4>
+                            <div id="facilityMap" style="height: 300px;">Loading map...</div>
+                            <p class="mt-2">
+                                <i class="fas fa-map-marker-alt"></i> <span id="facilityAddressMap">Loading address...</span><br>
+                                <i class="fas fa-globe-americas"></i> <span id="facilityRegion">Loading region...</span>, <span id="facilityCountry">Loading country...</span>
+                            </p>
+                        </section>
                     </div>
 
-                    <!-- Related/Regional Significance - Kept static for now -->
-                     <div class="facility-detail-card mt-4">
-                        <h4>Regional Significance</h4>
-                        <p>The South Carolina Campus is strategically located in the rapidly growing southeastern battery manufacturing corridor. This region has attracted major investments from automotive manufacturers like BMW, Mercedes-Benz, Hyundai, and battery producers. The facility is expected to create approximately 1,500 jobs and will be a cornerstone of the domestic battery supply chain, reducing dependency on imported materials.</p>
+                    <div id="content-company" class="content-section">
+                        <section class="facility-detail-section">
+                            <h4 class="section-title">Company Information</h4>
+                            <p><strong>Company:</strong> <span id="facilityCompany">Loading...</span></p>
+                            <div class="text-center mb-3">
+                                <img id="companyLogo" src="" alt="Company Logo" class="img-fluid" style="max-height: 80px; display: none;">
+                            </div>
+                            <p id="companyDescription">Loading company info...</p>
+                            <a id="companyWebsite" href="#" target="_blank" class="btn btn-outline-primary btn-sm mt-2" style="display: none;"><i class="fas fa-external-link-alt"></i> Company Website</a>
+                        </section>
                     </div>
-                    <div class="facility-detail-card mt-4">
-                        <h4>Related Facilities</h4>
-                        <ul class="list-group">
-                             <li class="list-group-item"><a href="redwood-nevada.html">Redwood Materials Nevada Campus</a></li>
-                             <li class="list-group-item"><a href="cirba-southcarolina.html">Cirba Solutions South Carolina Facility</a></li>
-                             <li class="list-group-item"><a href="ascend-georgia.html">Ascend Elements Base 1 (Georgia)</a></li>
-                             <li class="list-group-item"><a href="licycle-alabama.html">Li-Cycle Alabama Spoke</a></li>
-                        </ul>
+
+                    <div id="content-significance" class="content-section">
+                        <section class="facility-detail-section">
+                             <h4 class="section-title">Regional Significance</h4>
+                             <!-- Static content for now, update if data becomes available -->
+                             <p>Redwood Materials' planned campus near Charleston, South Carolina, represents a massive investment in creating a fully closed-loop battery materials supply chain in the US. This facility aims to recycle end-of-life batteries and manufacturing scrap, refine the recovered materials, and manufacture critical battery components (anode copper foil and cathode active materials) on-site. Its location in the burgeoning southeastern battery belt allows it to serve nearby automotive and battery manufacturers, significantly reducing logistics costs and the carbon footprint associated with battery production.</p>
+                        </section>
                     </div>
-                </div>
-            </div>
-            <!-- End Original Content -->
+
+                    <div id="content-related" class="content-section">
+                        <section class="facility-detail-section">
+                            <h4 class="section-title">Related Facilities</h4>
+                            <ul class="list-group list-group-flush">
+                                 <!-- Static content for now, update if data becomes available -->
+                                 <li class="list-group-item"><a href="redwood-nevada.html">Redwood Materials Nevada Campus</a></li>
+                                 <li class="list-group-item"><a href="redwood-carolina.html">Redwood Materials Carolina Campus (Phase 1)</a></li> <!-- Assuming this is a different phase/part -->
+                                 <li class="list-group-item"><a href="cirba-southcarolina.html">Cirba Solutions South Carolina Facility</a></li>
+                                 <li class="list-group-item"><a href="ascend-georgia.html">Ascend Elements Georgia Plant</a></li>
+                            </ul>
+                        </section>
+                    </div>
+                </div> <!-- End Right Content Column -->
+            </div> <!-- End Row -->
         </main> <!-- End Main Content Area -->
 
     </div> <!-- End dashboard-container -->
@@ -169,6 +189,5 @@
     <!-- Common Script (Loads header, handles routing, theme, auth) -->
     <script src="../js/common.js"></script>
 
-    <!-- Removed old inline script block -->
 </body>
 </html>

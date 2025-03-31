@@ -228,7 +228,7 @@
         "status": "Operating",
         "capacity": "40,000+ tonnes per year",
         "technology": "Integrated hydrometallurgical process",
-        "description": "Founded by ex-Tesla CTO JB Straubel. Processing facility with hydrometallurgical operations and rotary calciners for recycling.",
+        "description": "Founded by ex-Tesla CTO JB Straubel. Processing facility with hydrometallurgical operations and rotary calciners for recycling",
         "website": "https://www.redwoodmaterials.com/",
         "yearStarted": "2019",
         "region": "West",
@@ -257,7 +257,8 @@
         "products": "Battery materials including copper foil for anodes",
         "fundingSource": "Private investment, DOE grant",
         "size": "Not specified",
-        "technologyDetails": "Details about Integrated hydrometallurgical process."
+        "technologyDetails": "Details about Integrated hydrometallurgical process.",
+        "documents": []
       },
       "geometry": {
         "type": "Point",

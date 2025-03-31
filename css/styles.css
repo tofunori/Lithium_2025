@@ -526,6 +526,90 @@ body {
 /* Ensure map popup button text is visible */
 .leaflet-popup-content .info-box .btn-primary { color: #ffffff !important; }
 
+/* ==================== FACILITY DETAIL REDESIGN STYLES ==================== */
+
+/* Basic styles for sections (replace card styles) */
+.facility-detail-section {
+    margin-bottom: 2rem; /* Increased space between sections */
+    padding-top: 1rem; /* Add some top padding */
+}
+
+.section-title {
+    margin-bottom: 1rem; /* Space below title */
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    font-size: 1.5rem; /* Slightly larger title */
+    font-weight: 600;
+    color: var(--primary-color); /* Use primary color for titles */
+    transition: border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Sticky Sidebar Navigation */
+#sticky-nav-placeholder {
+    /* position: sticky; */ /* Removed for left-nav approach */
+    /* top: 20px; */
+    /* z-index: 1020; */
+    /* max-height: calc(100vh - 40px); */
+    /* overflow-y: auto; */
+     /* Consider adding max-height and overflow-y if the nav list can get very long */
+}
+
+#page-navigation .nav-link {
+    padding: 0.4rem 0.75rem; /* Slightly more padding */
+    color: var(--text-muted-color);
+    font-size: 0.9rem;
+    border-left: 3px solid transparent; /* Indicator for active state */
+    transition: color 0.2s ease, border-left-color 0.2s ease, background-color 0.2s ease;
+    cursor: pointer; /* Indicate clickable */
+}
+
+#page-navigation .nav-link:hover {
+    color: var(--link-hover-color);
+    background-color: var(--navbar-link-hover-bg);
+}
+
+/* Active state for nav links (will need JS to add/remove this class) */
+#page-navigation .nav-link.active {
+    color: var(--primary-color);
+    font-weight: 500;
+    border-left-color: var(--primary-color);
+    background-color: var(--navbar-link-active-bg); /* Add subtle background for active */
+}
+
+/* Optional: Style the card holding the nav */
+#sticky-nav-placeholder .card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--subtle-shadow);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+#sticky-nav-placeholder .card-title {
+    color: var(--text-color); /* Ensure title matches theme */
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Adjust list group styling within sections */
+.facility-detail-section .list-group-flush .list-group-item {
+    background-color: transparent; /* Remove background if inside a section */
+    border-color: var(--border-color); /* Ensure border matches theme */
+    padding-left: 0; /* Align with section content */
+    padding-right: 0;
+}
+
+/* Styles for Content Swapping */
+.content-section {
+    display: none; /* Hide content sections by default */
+}
+
+.content-section.active {
+    display: block; /* Show the active content section */
+    animation: fadeIn 0.3s ease-in-out; /* Optional fade-in */
+}
+
+/* ==================== END FACILITY DETAIL REDESIGN STYLES ==================== */
+
 /* ==================== DARK THEME STYLES ==================== */
 body.dark-theme {
     /* Redefine variables for dark mode */
