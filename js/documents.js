@@ -960,7 +960,7 @@ async function handleNewFolderClick() { // Made async
     if (currentFolderId !== 'root') {
         try {
             console.log(`Fetching parent folder (${currentFolderId}) details to inherit tags...`);
-            const parentInfoResponse = await fetch(`/api/doc_items/${currentFolderId}`);
+            const parentInfoResponse = await fetchWithAuth(`/api/doc_items/${currentFolderId}`); // Use fetchWithAuth
             if (!parentInfoResponse.ok) {
                  console.warn(`Could not fetch parent folder details (${parentInfoResponse.statusText}), proceeding without tag inheritance.`);
             } else {
@@ -989,9 +989,9 @@ async function handleNewFolderClick() { // Made async
     // TODO: Consider inheriting other tags from parentTags if needed
 
     try {
-        const response = await fetch('/api/doc_items', { // Use the new endpoint
+        const response = await fetchWithAuth('/api/doc_items', { // Use fetchWithAuth
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            // headers: { 'Content-Type': 'application/json' }, // fetchWithAuth handles headers
             body: JSON.stringify(newItemData)
         });
 
