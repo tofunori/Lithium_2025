@@ -294,26 +294,22 @@
         // --- End GeoJSON File Upload Handling ---
 
 
-        // Check if user is logged in - redirect if not
-        async function checkLogin() {
-            try {
-                const response = await fetch('/api/session');
-                const sessionData = await response.json();
-                console.log('[/api/session] response status:', response.status); // Roo log
-                console.log('[/api/session] response data:', sessionData); // Roo log
-                if (!sessionData.loggedIn) {
-                    console.log('User not logged in according to /api/session, redirecting to login.html'); // Roo log
-                    window.location.href = 'login.html'; // Redirect to login if not authenticated
-                } else {
-                    console.log('User is logged in according to /api/session.'); // Roo log
-                }
-            } catch (error) {
-                console.error('Error checking session status:', error);
-                // Optionally handle error, maybe redirect to login anyway
-                 console.log('Error fetching /api/session, redirecting to login.html'); // Roo log
-                 window.location.href = 'login.html';
-            }
+        // --- Authentication Check (Client-Side) ---
+        // This check runs if the page is loaded directly (e.g., refresh, bookmark)
+        // It ensures the user has a valid token before showing the form.
+        // SPA navigation relies on the check in common.js when the header loads.
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            console.log("No auth token found in localStorage on direct load. Redirecting to login.");
+            window.location.href = 'login.html'; // Redirect immediately
+        } else {
+             console.log("Auth token found in localStorage on direct load. Proceeding.");
+             // If the token exists, we assume the user is logged in for this page.
+             // A more robust check could involve verifying the token with an API endpoint,
+             // but for now, presence is sufficient based on the existing app logic.
         }
+        // --- End Authentication Check ---
+
 
         document.getElementById('newFacilityForm').addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -424,53 +420,9 @@
             }
         });
 
-         // Initial check
-         // document.addEventListener('DOMContentLoaded', checkLogin); // Remove this line
-
-        // Auth Check/Logout Logic (Copied from other pages)
-        async function checkAuthStatus() {
-            const authStatusElement = document.getElementById('authStatus');
-            if (!authStatusElement) return;
-            try {
-                const response = await fetch('/api/session');
-                const sessionData = await response.json();
-                if (sessionData.loggedIn) {
-                    authStatusElement.innerHTML = `
-                        <span class="navbar-text me-3">Welcome, ${sessionData.user.username}!</span>
-                        <a href="new-facility.html" class="btn btn-sm btn-success me-2 disabled"><i class="fas fa-plus"></i> Add Facility</a>
-                        <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger">Logout</a>
-                    `;
-                    const logoutLink = document.getElementById('logoutLink');
-                    if(logoutLink) logoutLink.addEventListener('click', handleLogout);
-                } else {
-                    // Should have been redirected by checkLogin, but handle anyway
-                    authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
-                }
-            } catch (error) {
-                console.error('Error checking auth status:', error);
-                authStatusElement.innerHTML = '<span class="text-danger small">Session check failed</span>';
-            }
-        }
-
-        async function handleLogout(event) {
-            event.preventDefault();
-            try {
-                const response = await fetch('/api/logout');
-                const result = await response.json();
-                if (result.success) {
-                    window.location.href = 'index.html'; // Go to dashboard after logout
-                } else {
-                    alert('Logout failed. Please try again.');
-                }
-            } catch (error) {
-                console.error('Logout error:', error);
-                alert('An error occurred during logout.');
-            }
-        }
-         // Call auth check after login check
-         document.addEventListener('DOMContentLoaded', () => {
-             checkLogin().then(checkAuthStatus); // Chain the checks
-         });
+        // Removed redundant checkAuthStatus and handleLogout functions.
+        // This logic is handled globally by js/common.js when the header loads.
+        // The check at the top of this script handles direct page access.
 
     </script>
 
