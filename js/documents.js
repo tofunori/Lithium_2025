@@ -298,7 +298,10 @@ async function fetchWithAuth(url, options = {}) {
     };
 
     if (token) {
+        console.log('[fetchWithAuth] Token found in localStorage:', !!token);
         headers['Authorization'] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log('[fetchWithAuth] Authorization header set.');
     } else {
         console.warn(`[Auth] No token found for request to ${url}. Request might fail if endpoint is protected.`);
         // Optionally redirect to login if no token is ever found for protected routes
