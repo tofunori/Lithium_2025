@@ -299,12 +299,18 @@
             try {
                 const response = await fetch('/api/session');
                 const sessionData = await response.json();
+                console.log('[/api/session] response status:', response.status); // Roo log
+                console.log('[/api/session] response data:', sessionData); // Roo log
                 if (!sessionData.loggedIn) {
+                    console.log('User not logged in according to /api/session, redirecting to login.html'); // Roo log
                     window.location.href = 'login.html'; // Redirect to login if not authenticated
+                } else {
+                    console.log('User is logged in according to /api/session.'); // Roo log
                 }
             } catch (error) {
                 console.error('Error checking session status:', error);
                 // Optionally handle error, maybe redirect to login anyway
+                 console.log('Error fetching /api/session, redirecting to login.html'); // Roo log
                  window.location.href = 'login.html';
             }
         }
