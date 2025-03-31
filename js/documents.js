@@ -1,72 +1,71 @@
-// js/documents.js - Logic for the Manage Documents page
+// js/documents.js - Logic for the File Explorer Documents page
 
-// State variables (global within this module's scope)
+// --- State Variables ---
 var currentSelectedFacilityId = null;
-var currentSelectedFacilityData = null;
-var allFacilitiesData = null; // Cache for 'ALL' view
+var currentFacilityName = null; // Store the name for display
+var currentFilesystemData = null; // Holds the entire filesystem map for the selected facility
+var currentFolderId = null; // ID of the folder currently being viewed
 
-// DOM Element references (will be assigned in init)
+// --- DOM Element References ---
+// Will be assigned in initDocumentsPage
 var facilitySelect = null;
 var documentManagementSection = null;
 var selectedFacilityNameElement = null;
-var documentUploadInput = null;
-var uploadDocumentButton = null;
-var uploadStatusMessage = null;
-var linkUrlInput = null;
-var linkDescriptionInput = null;
+var breadcrumbNav = null;
+var breadcrumbList = null;
+var fileExplorerView = null;
+var loadingMessage = null;
+var emptyFolderMessage = null;
+var newFolderButton = null;
+var uploadFileButton = null;
 var addLinkButton = null;
-var addLinkStatusMessage = null;
-var documentList = null;
-var noDocumentsMessage = null;
-var uploadFormElements = null;
-var addLinkFormElements = null;
 var errorMessageDiv = null;
 var successMessageDiv = null;
 
-// NEW: Initialization function called by router
+// --- Initialization ---
+// Called by router when the documents page is loaded
 window.initDocumentsPage = function() {
-    console.log("Initializing Documents Page...");
+    console.log("Initializing File Explorer Documents Page...");
 
-    // --- Query DOM Elements (important to do this *after* content is loaded) ---
+    // --- Query DOM Elements ---
     facilitySelect = document.getElementById('facilitySelect');
     documentManagementSection = document.getElementById('documentManagementSection');
     selectedFacilityNameElement = document.getElementById('selectedFacilityName');
-    documentUploadInput = document.getElementById('documentUploadInput');
-    uploadDocumentButton = document.getElementById('uploadDocumentButton');
-    uploadStatusMessage = document.getElementById('uploadStatusMessage');
-    linkUrlInput = document.getElementById('linkUrlInput');
-    linkDescriptionInput = document.getElementById('linkDescriptionInput');
+    breadcrumbNav = document.getElementById('breadcrumbNav');
+    breadcrumbList = document.getElementById('breadcrumbList');
+    fileExplorerView = document.getElementById('fileExplorerView');
+    loadingMessage = document.getElementById('loadingMessage');
+    emptyFolderMessage = document.getElementById('emptyFolderMessage');
+    newFolderButton = document.getElementById('newFolderButton');
+    uploadFileButton = document.getElementById('uploadFileButton');
     addLinkButton = document.getElementById('addLinkButton');
-    addLinkStatusMessage = document.getElementById('addLinkStatusMessage');
-    documentList = document.getElementById('documentList');
-    noDocumentsMessage = document.getElementById('noDocumentsMessage'); // May not exist initially if list populated
-    uploadFormElements = document.querySelector('#documentManagementSection .card-body > div:nth-of-type(1)');
-    addLinkFormElements = document.querySelector('#documentManagementSection .card-body > div:nth-of-type(3)');
     errorMessageDiv = document.getElementById('errorMessage');
     successMessageDiv = document.getElementById('successMessage');
     // --- End Query DOM Elements ---
 
     // Check if essential elements exist
-    if (!facilitySelect || !documentManagementSection || !documentList) {
-        console.error("Essential elements for Documents page not found. Aborting initialization.");
+    if (!facilitySelect || !documentManagementSection || !fileExplorerView || !breadcrumbList || !newFolderButton) {
+        console.error("Essential elements for File Explorer page not found. Aborting initialization.");
+        if (errorMessageDiv) showError("Error initializing page elements. Please refresh.");
         return;
     }
 
     // --- Reset State and UI ---
-    console.log("Resetting documents page state and UI...");
+    console.log("Resetting file explorer state and UI...");
     currentSelectedFacilityId = null;
-    currentSelectedFacilityData = null;
-    allFacilitiesData = null; // Clear cache on re-init
-    facilitySelect.innerHTML = '<option selected disabled value="">-- Select a Facility --</option><option value="ALL">-- All Facilities --</option>'; // Reset dropdown options
+    currentFacilityName = null;
+    currentFilesystemData = null;
+    currentFolderId = null;
+    facilitySelect.innerHTML = '<option selected disabled value="">-- Select a Facility --</option>'; // Keep only default
     facilitySelect.value = ''; // Reset selection
-    documentList.innerHTML = ''; // Clear list
-    if (noDocumentsMessage) noDocumentsMessage.remove(); // Remove old message if exists
-    documentManagementSection.classList.add('d-none'); // Hide section
-    showError(''); showSuccess(''); showUploadStatus(''); showAddLinkStatus(''); // Clear messages
+    breadcrumbList.innerHTML = ''; // Clear breadcrumbs
+    fileExplorerView.innerHTML = ''; // Clear file view
+    if(loadingMessage) loadingMessage.classList.remove('d-none');
+    if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
+    documentManagementSection.classList.add('d-none'); // Hide section initially
+    breadcrumbNav.style.display = 'none'; // Hide breadcrumbs initially
+    showError(''); showSuccess(''); // Clear messages
     // --- End Reset State and UI ---
-
-
-    // Removed initial login check - assuming handled elsewhere or user won't see page
 
     // Populate Facility Dropdown
     populateFacilityDropdown(); // Re-populate dropdown
@@ -77,37 +76,57 @@ window.initDocumentsPage = function() {
 
 // Function to setup event listeners, preventing duplicates
 function setupDocumentsEventListeners() {
-    console.log("Setting up documents event listeners...");
+    console.log("Setting up file explorer event listeners...");
 
-    if (facilitySelect && !facilitySelect.hasAttribute('data-listener-added')) {
-        console.log("Adding listener to facilitySelect");
+    // Remove old listeners if they exist (simple approach)
+    // A more robust approach might involve storing references and removing specific ones
+    facilitySelect?.removeEventListener('change', handleFacilitySelection);
+    breadcrumbNav?.removeEventListener('click', handleBreadcrumbClick);
+    fileExplorerView?.removeEventListener('click', handleItemClick);
+    newFolderButton?.removeEventListener('click', handleNewFolderClick);
+    uploadFileButton?.removeEventListener('click', handleUploadFileClick);
+    addLinkButton?.removeEventListener('click', handleAddLinkClick);
+
+    // Add new listeners
+    if (facilitySelect) {
         facilitySelect.addEventListener('change', handleFacilitySelection);
-        facilitySelect.setAttribute('data-listener-added', 'true');
     }
-    if (uploadDocumentButton && !uploadDocumentButton.hasAttribute('data-listener-added')) {
-         console.log("Adding listener to uploadDocumentButton");
-        uploadDocumentButton.addEventListener('click', handleDocumentUpload);
-        uploadDocumentButton.setAttribute('data-listener-added', 'true');
+    if (breadcrumbNav) {
+        // Listen for clicks on breadcrumb links
+        breadcrumbNav.addEventListener('click', handleBreadcrumbClick);
     }
-    if (addLinkButton && !addLinkButton.hasAttribute('data-listener-added')) {
-         console.log("Adding listener to addLinkButton");
-        addLinkButton.addEventListener('click', handleAddLink);
-        addLinkButton.setAttribute('data-listener-added', 'true');
+     if (fileExplorerView) {
+        // Use event delegation for items within the view
+        fileExplorerView.addEventListener('click', handleItemClick);
     }
-    // Note: The document click listener is added dynamically in populateDocumentList
+    if (newFolderButton) {
+        newFolderButton.addEventListener('click', handleNewFolderClick);
+    }
+     if (uploadFileButton) {
+        uploadFileButton.addEventListener('click', handleUploadFileClick);
+    }
+     if (addLinkButton) {
+        addLinkButton.addEventListener('click', handleAddLinkClick);
+    }
 }
 
+
+// --- Data Fetching & Handling ---
 
 // Function to fetch all facilities and populate the dropdown
 async function populateFacilityDropdown() {
     if (!facilitySelect) return;
     console.log("Populating facility dropdown...");
     try {
+        // This endpoint now reads from Firestore via api/index.js
         const response = await fetch('/api/facilities');
         if (!response.ok) throw new Error(`Error fetching facilities: ${response.statusText}`);
-        const facilitiesData = await response.json();
-        // Don't cache here, cache in the main state variable if needed for 'ALL'
-        // allFacilitiesData = facilitiesData;
+        const facilitiesData = await response.json(); // Expects { type: "FeatureCollection", features: [...] }
+
+        if (!facilitiesData || !facilitiesData.features) {
+             throw new Error("Invalid data format received for facilities.");
+        }
+
         facilitiesData.features.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
         facilitiesData.features.forEach(facility => {
             const option = document.createElement('option');
@@ -125,197 +144,303 @@ async function populateFacilityDropdown() {
 async function handleFacilitySelection(event) {
     const selectedValue = event.target.value;
     console.log("Facility selected:", selectedValue);
+
+    // Reset view
     currentSelectedFacilityId = selectedValue;
-    currentSelectedFacilityData = null; // Reset specific facility data
+    currentFacilityName = facilitySelect.options[facilitySelect.selectedIndex]?.text || 'Selected Facility';
+    currentFilesystemData = null;
+    currentFolderId = null;
+    fileExplorerView.innerHTML = '';
+    breadcrumbList.innerHTML = '';
+    breadcrumbNav.style.display = 'none';
+    if(loadingMessage) loadingMessage.classList.remove('d-none');
+    if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
+    showError(''); showSuccess('');
 
     if (!selectedValue) {
         documentManagementSection.classList.add('d-none');
         return;
     }
 
-    showError(''); showSuccess(''); showUploadStatus(''); showAddLinkStatus('');
-    populateDocumentList(null); // Clear list while loading
     documentManagementSection.classList.remove('d-none');
+    if(selectedFacilityNameElement) selectedFacilityNameElement.textContent = `Files for: ${currentFacilityName}`;
 
     try {
-        if (selectedValue === 'ALL') {
-            console.log("Handling 'ALL' selection...");
-            // --- Handle "All Facilities" ---
-            // Fetch if not cached
-            if (!allFacilitiesData) {
-                 console.log("Fetching all facilities data for 'ALL' view...");
-                 const response = await fetch('/api/facilities');
-                 if (!response.ok) throw new Error(`Error fetching facilities: ${response.statusText}`);
-                 allFacilitiesData = await response.json();
-            } else {
-                 console.log("Using cached all facilities data for 'ALL' view.");
-            }
-
-            const combinedDocuments = [];
-            if (allFacilitiesData && allFacilitiesData.features) {
-                allFacilitiesData.features.forEach(facility => {
-                    if (facility.properties.documents && facility.properties.documents.length > 0) {
-                        facility.properties.documents.forEach(doc => {
-                            combinedDocuments.push({ ...doc, facilityId: facility.properties.id, facilityName: facility.properties.name });
-                        });
-                    }
-                });
-                combinedDocuments.sort((a, b) => {
-                    const nameCompare = a.facilityName.localeCompare(b.facilityName);
-                    if (nameCompare !== 0) return nameCompare;
-                    const textA = a.type === 'link' ? a.description : a.filename;
-                    const textB = b.type === 'link' ? b.description : b.filename;
-                    return textA.localeCompare(textB);
-                });
-            }
-
-            if (selectedFacilityNameElement) selectedFacilityNameElement.textContent = `Items for: All Facilities`;
-            populateDocumentList(combinedDocuments);
-            // Disable upload and add link forms for 'ALL' view
-            if (uploadFormElements) uploadFormElements.classList.add('d-none');
-            if (addLinkFormElements) addLinkFormElements.classList.add('d-none');
-
-        } else {
-            console.log(`Handling specific facility selection: ${selectedValue}`);
-            // --- Handle Specific Facility ---
-            const response = await fetch(`/api/facilities/${selectedValue}`);
-            if (!response.ok) throw new Error(`Error fetching details for facility ${selectedValue}: ${response.statusText}`);
-            currentSelectedFacilityData = await response.json();
-
-            if (selectedFacilityNameElement) selectedFacilityNameElement.textContent = `Items for: ${currentSelectedFacilityData.properties.name}`;
-            populateDocumentList(currentSelectedFacilityData.properties.documents);
-            // Enable upload and add link forms
-             if (uploadFormElements) uploadFormElements.classList.remove('d-none');
-             if (addLinkFormElements) addLinkFormElements.classList.remove('d-none');
+        console.log(`Fetching details for facility: ${selectedValue}`);
+        // Fetch the specific facility data (which includes the filesystem)
+        const response = await fetch(`/api/facilities/${selectedValue}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Error fetching details for facility ${selectedValue}`);
         }
+        const facilityFeature = await response.json();
+
+        if (!facilityFeature || !facilityFeature.properties || !facilityFeature.properties.filesystem) {
+             throw new Error("Invalid data format received for facility details or filesystem missing.");
+        }
+
+        currentFilesystemData = facilityFeature.properties.filesystem;
+        console.log("Filesystem data loaded:", currentFilesystemData);
+
+        // Find the root folder ID (assuming convention 'root-facilityId')
+        const rootFolderId = `root-${currentSelectedFacilityId}`;
+        if (!currentFilesystemData[rootFolderId] || currentFilesystemData[rootFolderId].type !== 'folder') {
+            console.error("Root folder not found in filesystem data:", rootFolderId);
+            throw new Error("Could not find root folder for this facility.");
+        }
+
+        currentFolderId = rootFolderId;
+        console.log("Current folder set to root:", currentFolderId);
+
+        // Initial render
+        renderBreadcrumbs(currentFolderId);
+        renderFolderContents(currentFolderId);
+        breadcrumbNav.style.display = 'block'; // Show breadcrumbs
+
     } catch (error) {
         console.error('Error handling facility selection:', error);
-        showError(`Failed to load items: ${error.message}`);
+        showError(`Failed to load facility data: ${error.message}`);
         documentManagementSection.classList.add('d-none');
-        currentSelectedFacilityData = null;
-        // Consider if allFacilitiesData should be cleared on error too
-        // allFacilitiesData = null;
+        currentFilesystemData = null;
+        currentFolderId = null;
+    } finally {
+         if(loadingMessage) loadingMessage.classList.add('d-none');
     }
 }
 
-// Function to populate the list of documents and links
-function populateDocumentList(items) { // Renamed parameter to 'items'
-    if (!documentList) {
-        console.error("Document list element not found in populateDocumentList");
+// --- Rendering Functions ---
+
+function renderBreadcrumbs(folderId) {
+    console.log("Rendering breadcrumbs for folder:", folderId);
+    if (!currentFilesystemData || !breadcrumbList) return;
+
+    breadcrumbList.innerHTML = ''; // Clear existing
+    const path = [];
+    let currentId = folderId;
+
+    // Traverse up to the root
+    while (currentId) {
+        const folder = currentFilesystemData[currentId];
+        if (!folder) break; // Should not happen in consistent data
+        path.unshift(folder); // Add to beginning
+        currentId = folder.parentId;
+    }
+
+    // Create breadcrumb items
+    path.forEach((folder, index) => {
+        const li = document.createElement('li');
+        li.className = `breadcrumb-item ${index === path.length - 1 ? 'active' : ''}`;
+        li.setAttribute('aria-current', index === path.length - 1 ? 'page' : 'false');
+
+        if (index === path.length - 1) {
+            // Last item (current folder) is not a link
+             li.textContent = folder.name === '/' ? 'Root' : folder.name;
+        } else {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.dataset.folderId = folder.id; // Store folder ID for click handling
+            a.textContent = folder.name === '/' ? 'Root' : folder.name;
+            // Add home icon for root
+            if (folder.parentId === null) {
+                 a.innerHTML = '<i class="fas fa-home"></i> Root';
+            }
+            li.appendChild(a);
+        }
+        breadcrumbList.appendChild(li);
+    });
+     breadcrumbNav.style.display = 'block';
+}
+
+function renderFolderContents(folderId) {
+    console.log("Rendering contents for folder:", folderId);
+    if (!currentFilesystemData || !fileExplorerView) return;
+
+    fileExplorerView.innerHTML = ''; // Clear existing view
+    if(loadingMessage) loadingMessage.classList.add('d-none');
+    if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
+
+    const folder = currentFilesystemData[folderId];
+    if (!folder || folder.type !== 'folder') {
+        console.error("Invalid folder ID or item is not a folder:", folderId);
+        showError("Could not load folder contents.");
         return;
     }
 
-    console.log("Populating document list with items:", items);
-    documentList.innerHTML = ''; // Clear previous items
-    // Ensure noDocumentsMessage element is queried correctly or created if needed
-    noDocumentsMessage = document.getElementById('noDocumentsMessage');
-    if (!noDocumentsMessage) {
-        noDocumentsMessage = document.createElement('li');
-        noDocumentsMessage.id = 'noDocumentsMessage';
-        noDocumentsMessage.className = 'list-group-item text-muted';
-        // Don't append here, append only if needed
-    } else {
-        noDocumentsMessage.remove(); // Remove from DOM if it exists
+    const childrenIds = folder.children || [];
+    if (childrenIds.length === 0) {
+        if(emptyFolderMessage) emptyFolderMessage.classList.remove('d-none');
+        fileExplorerView.appendChild(emptyFolderMessage);
+        return;
     }
 
+    // --- Create Table Structure (Example) ---
+    const table = document.createElement('table');
+    table.className = 'table table-hover table-sm'; // Bootstrap table classes
+    const thead = table.createTHead();
+    const tbody = table.createTBody();
+    const headerRow = thead.insertRow();
+    headerRow.innerHTML = `
+        <th scope="col" style="width: 40px;">Type</th>
+        <th scope="col">Name</th>
+        <th scope="col">Date Modified/Added</th>
+        <th scope="col">Size</th>
+        <th scope="col" style="width: 100px;">Actions</th>
+    `;
 
-    const isCombinedList = items && items.length > 0 && items[0].facilityId;
+    // --- Populate Table Rows ---
+    childrenIds.forEach(itemId => {
+        const item = currentFilesystemData[itemId];
+        if (!item) {
+            console.warn("Child item not found in filesystem data:", itemId);
+            return; // Skip if data is inconsistent
+        }
 
-    if (items && Array.isArray(items) && items.length > 0) {
-        // Items exist, ensure message is hidden/removed
-        noDocumentsMessage.classList.add('d-none');
+        const row = tbody.insertRow();
+        row.dataset.itemId = item.id; // Store item ID on the row
+        row.dataset.itemType = item.type;
 
-        items.forEach(item => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap';
+        let iconClass = 'fa-question-circle'; // Default icon
+        let itemLink = '#';
+        let nameContent = item.name;
+        let dateContent = '';
+        let sizeContent = '';
 
-            const linkDiv = document.createElement('div');
-            const link = document.createElement('a');
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-fw me-2'; // Base icon classes
+        if (item.type === 'folder') {
+            iconClass = 'fa-folder text-warning'; // Folder icon
+            itemLink = '#'; // Folders handled by click listener on name
+            dateContent = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-';
+            sizeContent = '-';
+             row.classList.add('folder-row'); // Add class for styling/event handling
+        } else if (item.type === 'file') {
+            iconClass = 'fa-file-alt text-secondary'; // File icon
+            itemLink = '#'; // Files handled by click listener on name
+            dateContent = item.uploadedAt ? new Date(item.uploadedAt).toLocaleDateString() : '-';
+            sizeContent = item.size ? `${(item.size / 1024).toFixed(1)} KB` : '-'; // Format size
+             row.classList.add('file-row');
+        } else if (item.type === 'link') {
+            iconClass = 'fa-link text-info'; // Link icon
+            itemLink = item.url; // Links open directly
+            nameContent = `${item.name} <i class="fas fa-external-link-alt fa-xs"></i>`; // Add external link icon
+            dateContent = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : '-';
+            sizeContent = '-';
+             row.classList.add('link-row');
+        }
 
-            if (item.type === 'link') {
-                icon.classList.add('fa-link');
-                link.href = item.url;
-                link.target = '_blank'; // Open links in new tab
-                link.textContent = item.description || item.url; // Show description or URL
-                link.title = item.url; // Show URL on hover
-                // No click listener needed for links, they work via href
-            } else { // Assume 'file' or default to file behavior
-                icon.classList.add('fa-file-alt'); // File icon
-                link.href = '#'; // Prevent default link behavior
-                link.textContent = item.filename;
-                link.dataset.filename = item.filename;
-                link.dataset.type = 'file'; // Mark as file type
-                if (isCombinedList) {
-                    link.dataset.facilityId = item.facilityId;
-                }
-                // Add listener ONLY for files
-                link.addEventListener('click', handleDocumentClick);
-            }
+        // Cell: Type Icon
+        const cellType = row.insertCell();
+        cellType.innerHTML = `<i class="fas ${iconClass} fa-fw"></i>`;
 
-            linkDiv.appendChild(icon); // Add icon before link text
-            linkDiv.appendChild(link);
+        // Cell: Name (with link/action trigger)
+        const cellName = row.insertCell();
+        if (item.type === 'folder' || item.type === 'file') {
+            // Folders and files trigger actions via click listener
+            cellName.innerHTML = `<a href="#" class="item-link" data-item-id="${item.id}" data-item-type="${item.type}">${item.name}</a>`;
+        } else if (item.type === 'link') {
+            // Links open directly
+            cellName.innerHTML = `<a href="${itemLink}" target="_blank" class="item-link" title="${item.url}">${nameContent}</a>`;
+        } else {
+             cellName.textContent = item.name;
+        }
 
-            if (isCombinedList) {
-                const facilitySpan = document.createElement('span');
-                facilitySpan.className = 'badge bg-secondary ms-2';
-                facilitySpan.textContent = item.facilityName;
-                linkDiv.appendChild(facilitySpan);
-            }
 
-            const details = document.createElement('small');
-            details.className = 'text-muted ms-md-2 mt-1 mt-md-0';
-            let detailText = '';
-            if (item.size) { // Only files have size
-                 detailText += `(${(item.size / 1024 / 1024).toFixed(2)} MB)`;
-            }
-            const dateToShow = item.uploadedAt || item.addedAt; // Use appropriate date
-            if (dateToShow) {
-                 detailText += `${detailText ? ' - ' : ''}${new Date(dateToShow).toLocaleDateString()}`;
-            }
-            details.textContent = detailText;
+        // Cell: Date
+        const cellDate = row.insertCell();
+        cellDate.textContent = dateContent;
+        cellDate.classList.add('text-muted', 'small');
 
-            li.appendChild(linkDiv);
-            li.appendChild(details);
-            documentList.appendChild(li);
-        });
-    } else {
-        // No items, show the message
-        noDocumentsMessage.classList.remove('d-none');
-        if (currentSelectedFacilityId === 'ALL') noDocumentsMessage.textContent = 'No items found across all facilities.';
-        else if (currentSelectedFacilityId) noDocumentsMessage.textContent = 'No items added yet for this facility.';
-        else noDocumentsMessage.textContent = 'Select a facility to see its items.';
-        documentList.appendChild(noDocumentsMessage); // Append the message element
+        // Cell: Size
+        const cellSize = row.insertCell();
+        cellSize.textContent = sizeContent;
+        cellSize.classList.add('text-muted', 'small');
+
+        // Cell: Actions (Dropdown Example)
+        const cellActions = row.insertCell();
+        cellActions.classList.add('text-end');
+        cellActions.innerHTML = `
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="actionsDropdown-${item.id}" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown-${item.id}">
+                    <li><a class="dropdown-item action-rename" href="#" data-item-id="${item.id}"><i class="fas fa-edit fa-fw me-2"></i>Rename</a></li>
+                    <li><a class="dropdown-item action-move" href="#" data-item-id="${item.id}"><i class="fas fa-folder-open fa-fw me-2"></i>Move</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item action-delete text-danger" href="#" data-item-id="${item.id}"><i class="fas fa-trash-alt fa-fw me-2"></i>Delete</a></li>
+                </ul>
+            </div>
+        `;
+    });
+
+    fileExplorerView.appendChild(table);
+}
+
+
+// --- Event Handlers ---
+
+function handleItemClick(event) {
+    event.preventDefault(); // Prevent default link behavior
+
+    const target = event.target;
+    const itemLink = target.closest('a.item-link'); // Click might be on icon inside link
+    const actionLink = target.closest('a.dropdown-item'); // Click on action menu item
+
+    if (itemLink) {
+        const itemId = itemLink.dataset.itemId;
+        const itemType = itemLink.dataset.itemType;
+        console.log(`Item link clicked: ID=${itemId}, Type=${itemType}`);
+
+        if (itemType === 'folder') {
+            handleFolderClick(itemId);
+        } else if (itemType === 'file') {
+            handleFileClick(itemId);
+        }
+        // Links are handled by href, no JS needed here unless we add tracking etc.
+
+    } else if (actionLink) {
+        const itemId = actionLink.dataset.itemId;
+        console.log(`Action link clicked for item ID=${itemId}`);
+
+        if (actionLink.classList.contains('action-rename')) {
+            handleRenameClick(itemId);
+        } else if (actionLink.classList.contains('action-move')) {
+            handleMoveClick(itemId);
+        } else if (actionLink.classList.contains('action-delete')) {
+            handleDeleteClick(itemId);
+        }
     }
 }
 
-// Function to handle clicking on a document *file* link
-async function handleDocumentClick(event) {
-    event.preventDefault();
-    const linkElement = event.target.closest('a'); // Ensure we get the anchor
-    if (!linkElement || linkElement.dataset.type !== 'file') return; // Check type on anchor
-
-    const filename = linkElement.dataset.filename;
-    // Use facilityId from link dataset if present (for 'ALL' view), otherwise use current state
-    const facilityIdForLink = linkElement.dataset.facilityId || currentSelectedFacilityId;
-
-    if (!filename || !facilityIdForLink || facilityIdForLink === 'ALL') {
-        console.error('Missing filename or facility ID for file click.', { filename, facilityIdForLink });
-        showError('Could not get file link. Ensure a specific facility context exists.');
+function handleFolderClick(folderId) {
+    console.log("Navigating to folder:", folderId);
+    if (!currentFilesystemData || !currentFilesystemData[folderId] || currentFilesystemData[folderId].type !== 'folder') {
+        console.error("Invalid folder ID clicked:", folderId);
+        showError("Cannot navigate to invalid folder.");
         return;
     }
+    currentFolderId = folderId;
+    renderBreadcrumbs(currentFolderId);
+    renderFolderContents(currentFolderId);
+}
 
+async function handleFileClick(fileId) {
+    console.log("File clicked:", fileId);
+     if (!currentSelectedFacilityId || !currentFilesystemData || !currentFilesystemData[fileId] || currentFilesystemData[fileId].type !== 'file') {
+        console.error("Invalid file ID clicked or missing context:", fileId);
+        showError("Cannot get file link.");
+        return;
+    }
+    const fileData = currentFilesystemData[fileId];
+
+    // Show loading indicator?
+    showSuccess(`Getting download link for ${fileData.name}...`);
     showError('');
-    const originalText = linkElement.textContent; // Store original text
-    linkElement.textContent = `Loading ${filename}...`;
-    linkElement.style.pointerEvents = 'none'; // Disable link temporarily
 
     try {
-        // Fetch signed URL only for files
-        const response = await fetch(`/api/facilities/${facilityIdForLink}/documents/${filename}/url`);
+        // Use the new API endpoint
+        const response = await fetch(`/api/facilities/${currentSelectedFacilityId}/files/${fileId}/url`);
         const result = await response.json();
         if (response.ok && result.url) {
+            showSuccess(''); // Clear loading message
             window.open(result.url, '_blank');
         } else {
             throw new Error(result.message || `Failed to get download URL (Status: ${response.status})`);
@@ -323,145 +448,309 @@ async function handleDocumentClick(event) {
     } catch (error) {
         console.error('Error fetching document URL:', error);
         showError(`Error getting file link: ${error.message}`);
-    } finally {
-         linkElement.textContent = originalText; // Restore original text
-         linkElement.style.pointerEvents = ''; // Re-enable link
+        showSuccess(''); // Clear loading message
     }
 }
 
-// Function to handle the document file upload process
-async function handleDocumentUpload() {
-    if (!documentUploadInput || !uploadDocumentButton) return; // Check elements exist
-
-    if (currentSelectedFacilityId === 'ALL' || !currentSelectedFacilityId) {
-         showUploadStatus('Please select a specific facility first.', 'text-warning'); return;
+function handleBreadcrumbClick(event) {
+    const target = event.target.closest('a'); // Find the clicked anchor tag
+    if (target && target.dataset.folderId) {
+        event.preventDefault();
+        const folderId = target.dataset.folderId;
+        console.log("Breadcrumb clicked, navigating to folder:", folderId);
+        handleFolderClick(folderId); // Reuse folder navigation logic
     }
-    if (!documentUploadInput?.files?.length) {
-        showUploadStatus('Please select a file to upload.', 'text-danger'); return;
+}
+
+// --- Action Button Handlers (Placeholders/Basic Implementation) ---
+
+function handleNewFolderClick() {
+    console.log("New Folder button clicked. Current Parent:", currentFolderId);
+    if (!currentSelectedFacilityId || !currentFolderId) {
+        showError("Please select a facility and navigate to a folder first.");
+        return;
     }
-    const file = documentUploadInput.files[0];
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-    if (file.size > MAX_FILE_SIZE) {
-        showUploadStatus(`File is too large. Max ${MAX_FILE_SIZE / 1024 / 1024} MB.`, 'text-danger'); return;
+
+    const folderName = prompt("Enter name for the new folder:");
+    if (!folderName || folderName.trim().length === 0) {
+        showError("Folder name cannot be empty.");
+        return;
     }
 
-    showUploadStatus(`Uploading ${file.name}...`, 'text-info');
-    uploadDocumentButton.disabled = true;
-    const formData = new FormData();
-    formData.append('document', file);
+    // TODO: Add loading state indication
+    showSuccess(`Creating folder '${folderName}'...`);
+    showError('');
 
-    try {
-        const response = await fetch(`/api/facilities/${currentSelectedFacilityId}/documents`, { method: 'POST', body: formData });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || `Upload failed (Status: ${response.status})`);
-
-        showUploadStatus(`Successfully uploaded ${file.name}.`, 'text-success');
-        // Update local data cache if it exists for the current facility
-        if (currentSelectedFacilityData?.properties && currentSelectedFacilityId !== 'ALL') {
-             currentSelectedFacilityData.properties.documents = result.documents;
-             populateDocumentList(currentSelectedFacilityData.properties.documents);
-        } else {
-            // If 'ALL' was selected or cache is missing, force refresh on next selection
-            currentSelectedFacilityData = null;
-            allFacilitiesData = null; // Invalidate 'ALL' cache too
-            // Optionally, re-trigger handleFacilitySelection if needed, but might be complex
-            console.log("Upload successful, list will refresh on next selection.");
+    fetch(`/api/facilities/${currentSelectedFacilityId}/folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: currentFolderId, name: folderName.trim() })
+    })
+    .then(async response => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to create folder (Status: ${response.status})`);
         }
-        documentUploadInput.value = ''; // Clear input
-    } catch (error) {
-        console.error('Error uploading document:', error);
-        showUploadStatus(`Error uploading file: ${error.message}`, 'text-danger');
-    } finally {
-        uploadDocumentButton.disabled = false;
-        setTimeout(() => showUploadStatus(''), 5000);
-    }
-}
-
-// Function to handle adding a new link
-async function handleAddLink() {
-     if (!linkUrlInput || !linkDescriptionInput || !addLinkButton) return; // Check elements exist
-
-    if (currentSelectedFacilityId === 'ALL' || !currentSelectedFacilityId) {
-         showAddLinkStatus('Please select a specific facility first.', 'text-warning'); return;
-    }
-    const url = linkUrlInput.value.trim();
-    const description = linkDescriptionInput.value.trim();
-
-    if (!url || !description) {
-        showAddLinkStatus('Please enter both a URL and a description.', 'text-danger'); return;
-    }
-    // Basic URL validation
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-         showAddLinkStatus('Please enter a valid URL starting with http:// or https://', 'text-danger'); return;
-    }
-
-
-    showAddLinkStatus('Adding link...', 'text-info');
-    addLinkButton.disabled = true;
-
-    try {
-        const response = await fetch(`/api/facilities/${currentSelectedFacilityId}/links`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, description })
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || `Failed to add link (Status: ${response.status})`);
-
-        showAddLinkStatus('Link added successfully!', 'text-success');
-        // Update local data cache if it exists
-        if (currentSelectedFacilityData?.properties && currentSelectedFacilityId !== 'ALL') {
-             currentSelectedFacilityData.properties.documents = result.documents; // Update local data
-             populateDocumentList(currentSelectedFacilityData.properties.documents); // Refresh list
+        return response.json();
+    })
+    .then(result => {
+        console.log("Folder created successfully:", result);
+        showSuccess(`Folder '${folderName}' created successfully.`);
+        // Refresh the view by updating local data and re-rendering
+        if (result.updatedFilesystem) {
+             currentFilesystemData = result.updatedFilesystem;
+             renderFolderContents(currentFolderId); // Re-render current folder
         } else {
-             currentSelectedFacilityData = null; // Invalidate cache
-             allFacilitiesData = null;
-             console.log("Link added, list will refresh on next selection.");
+            // Fallback: Re-fetch facility data if filesystem wasn't returned
+            handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
         }
-        linkUrlInput.value = ''; // Clear inputs
-        linkDescriptionInput.value = '';
-    } catch (error) {
-        console.error('Error adding link:', error);
-        showAddLinkStatus(`Error adding link: ${error.message}`, 'text-danger');
-    } finally {
-        addLinkButton.disabled = false;
-        setTimeout(() => showAddLinkStatus(''), 5000);
+    })
+    .catch(error => {
+        console.error("Error creating folder:", error);
+        showError(`Error creating folder: ${error.message}`);
+        showSuccess(''); // Clear loading message
+    });
+}
+
+function handleUploadFileClick() {
+    console.log("Upload File button clicked. Current Parent:", currentFolderId);
+    if (!currentSelectedFacilityId || !currentFolderId) {
+        showError("Please select a facility and navigate to a folder first.");
+        return;
     }
+    // TODO: Implement a proper file upload modal/dialog
+    // For now, use a simple input - THIS IS TEMPORARY
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // TODO: Add loading state indication
+        showSuccess(`Uploading ${file.name}...`);
+        showError('');
+
+        const formData = new FormData();
+        formData.append('document', file); // API expects 'document' field
+        formData.append('parentId', currentFolderId); // Send parent folder ID
+
+        try {
+            const response = await fetch(`/api/facilities/${currentSelectedFacilityId}/files`, {
+                method: 'POST',
+                // No 'Content-Type' header needed for FormData, browser sets it
+                body: formData
+            });
+            if (!response.ok) {
+                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                 throw new Error(errorData.message || `Upload failed (Status: ${response.status})`);
+            }
+            const result = await response.json();
+            console.log("File uploaded successfully:", result);
+            showSuccess(`File '${file.name}' uploaded successfully.`);
+             // Refresh the view
+            if (result.updatedFilesystem) {
+                 currentFilesystemData = result.updatedFilesystem;
+                 renderFolderContents(currentFolderId);
+            } else {
+                handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            showError(`Error uploading file: ${error.message}`);
+            showSuccess(''); // Clear loading message
+        }
+    };
+    fileInput.click(); // Trigger the file selection dialog
 }
 
-// Helper to show add link status messages
-function showAddLinkStatus(message, className = 'text-muted') {
-     if (addLinkStatusMessage) {
-         addLinkStatusMessage.textContent = message;
-         addLinkStatusMessage.className = `form-text mt-1 ${className}`;
-     }
+function handleAddLinkClick() {
+    console.log("Add Link button clicked. Current Parent:", currentFolderId);
+     if (!currentSelectedFacilityId || !currentFolderId) {
+        showError("Please select a facility and navigate to a folder first.");
+        return;
+    }
+    // TODO: Implement a proper modal/dialog for adding links
+    const url = prompt("Enter the URL:");
+    if (!url || !url.trim().startsWith('http')) {
+        showError("Invalid URL provided.");
+        return;
+    }
+    const name = prompt("Enter a name/description for the link:");
+     if (!name || name.trim().length === 0) {
+        showError("Link name cannot be empty.");
+        return;
+    }
+
+    // TODO: Add loading state indication
+    showSuccess(`Adding link '${name}'...`);
+    showError('');
+
+    fetch(`/api/facilities/${currentSelectedFacilityId}/links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: currentFolderId, url: url.trim(), name: name.trim() })
+    })
+    .then(async response => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to add link (Status: ${response.status})`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        console.log("Link added successfully:", result);
+        showSuccess(`Link '${name}' added successfully.`);
+        // Refresh the view
+        if (result.updatedFilesystem) {
+             currentFilesystemData = result.updatedFilesystem;
+             renderFolderContents(currentFolderId);
+        } else {
+            handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
+        }
+    })
+    .catch(error => {
+        console.error("Error adding link:", error);
+        showError(`Error adding link: ${error.message}`);
+        showSuccess(''); // Clear loading message
+    });
 }
 
-// Helper to show upload status messages
-function showUploadStatus(message, className = 'text-muted') {
-     if (uploadStatusMessage) {
-         uploadStatusMessage.textContent = message;
-         uploadStatusMessage.className = `form-text mt-1 ${className}`;
-     }
+function handleRenameClick(itemId) {
+    console.log("Rename action clicked for item:", itemId);
+    if (!currentSelectedFacilityId || !currentFilesystemData || !currentFilesystemData[itemId]) {
+        showError("Cannot rename item: context missing.");
+        return;
+    }
+    const item = currentFilesystemData[itemId];
+    const currentName = item.name;
+
+    const newName = prompt(`Enter new name for '${currentName}':`, currentName);
+    if (!newName || newName.trim().length === 0 || newName.trim() === currentName) {
+        showError("Invalid or unchanged name provided.");
+        return;
+    }
+
+    // TODO: Add loading state
+    showSuccess(`Renaming '${currentName}' to '${newName}'...`);
+    showError('');
+
+    fetch(`/api/facilities/${currentSelectedFacilityId}/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rename', newName: newName.trim() })
+    })
+    .then(async response => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to rename item (Status: ${response.status})`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        console.log("Item renamed successfully:", result);
+        showSuccess(`Item renamed to '${newName}' successfully.`);
+        // Refresh view
+        if (result.updatedFilesystem) {
+             currentFilesystemData = result.updatedFilesystem;
+             renderFolderContents(currentFolderId); // Re-render current folder
+        } else {
+            handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
+        }
+    })
+    .catch(error => {
+        console.error("Error renaming item:", error);
+        showError(`Error renaming item: ${error.message}`);
+        showSuccess('');
+    });
 }
+
+function handleMoveClick(itemId) {
+    console.log("Move action clicked for item:", itemId);
+    // TODO: Implement a folder selection modal/UI
+    alert("Move functionality requires a folder selection UI (Not Implemented Yet).");
+    // Example steps:
+    // 1. Show modal to select target folder.
+    // 2. Get target folder ID (`newParentId`).
+    // 3. Call API: fetch(`/api/facilities/${currentSelectedFacilityId}/items/${itemId}`, { method: 'PUT', ..., body: JSON.stringify({ action: 'move', newParentId: newParentId }) })
+    // 4. Refresh view on success.
+}
+
+function handleDeleteClick(itemId) {
+    console.log("Delete action clicked for item:", itemId);
+     if (!currentSelectedFacilityId || !currentFilesystemData || !currentFilesystemData[itemId]) {
+        showError("Cannot delete item: context missing.");
+        return;
+    }
+    const item = currentFilesystemData[itemId];
+    const itemType = item.type;
+    const itemName = item.name;
+
+    const confirmationMessage = itemType === 'folder'
+        ? `Are you sure you want to delete the folder '${itemName}' and ALL its contents? This cannot be undone.`
+        : `Are you sure you want to delete the ${itemType} '${itemName}'? This cannot be undone.`;
+
+    if (!confirm(confirmationMessage)) {
+        return; // User cancelled
+    }
+
+    // TODO: Add loading state
+    showSuccess(`Deleting ${itemType} '${itemName}'...`);
+    showError('');
+
+    fetch(`/api/facilities/${currentSelectedFacilityId}/items/${itemId}`, {
+        method: 'DELETE'
+    })
+     .then(async response => {
+        // Check for 200 OK or 204 No Content for successful deletion
+        if (!response.ok && response.status !== 204) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to delete item (Status: ${response.status})`);
+        }
+        // No JSON body expected on successful DELETE usually
+        return null;
+    })
+    .then(() => {
+        console.log("Item deleted successfully:", itemId);
+        showSuccess(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} '${itemName}' deleted successfully.`);
+        // Refresh view - IMPORTANT: Need to re-fetch data as filesystem structure changed
+        // Re-selecting the facility triggers a full refresh
+        handleFacilitySelection({ target: { value: currentSelectedFacilityId } });
+        // A more optimized approach would be to update the local state and re-render,
+        // but re-fetching is safer after deletion.
+    })
+    .catch(error => {
+        console.error("Error deleting item:", error);
+        showError(`Error deleting item: ${error.message}`);
+        showSuccess('');
+    });
+}
+
 
 // --- Utility Functions ---
 function showError(message) {
-    // const errorMessageDiv = document.getElementById('errorMessage'); // Query inside if needed
     if (!errorMessageDiv) return;
     errorMessageDiv.textContent = message;
     errorMessageDiv.classList.toggle('d-none', !message);
 }
 
 function showSuccess(message) {
-    // const successMessageDiv = document.getElementById('successMessage'); // Query inside if needed
      if (!successMessageDiv) return;
      successMessageDiv.textContent = message;
      successMessageDiv.classList.toggle('d-none', !message);
+     // Optional: Auto-hide success message after a delay
+     if (message) {
+         setTimeout(() => {
+             if (successMessageDiv.textContent === message) { // Avoid hiding newer messages
+                 showSuccess('');
+             }
+         }, 4000);
+     }
 }
 
-// --- REMOVED Auth Check/Logout Functions ---
-// REMOVED checkLogin
-// REMOVED checkAuthStatus
-// REMOVED updateHeaderAuthStatus
-// REMOVED handleLogout
+// --- REMOVED Old/Unused Functions ---
+// Removed handleDocumentUpload
+// Removed handleAddLink
+// Removed populateDocumentList
+// Removed handleDocumentClick
+// Removed showUploadStatus
+// Removed showAddLinkStatus
