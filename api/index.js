@@ -3,6 +3,7 @@ const fs = require('fs').promises; // Still needed for initial read in migration
 const path = require('path');
 const session = require('express-session'); // Import express-session
 const admin = require('firebase-admin'); // Firebase Admin SDK
+const FirestoreStore = require('connect-firestore')(session); // Add Firestore store
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
 
@@ -74,11 +75,20 @@ const upload = multer({
 // --- Core Middleware ---
 app.use(express.json()); // Parse JSON bodies
 app.use(express.static(path.join(__dirname, '..'))); // Serve static files from root
-app.use(session({ // Session handling
-    secret: process.env.SESSION_SECRET || 'your-very-secret-key',
+// Configure Firestore session store
+app.use(session({
+    store: new FirestoreStore({
+        dataset: db, // Use the initialized Firestore instance
+        kind: 'express-sessions', // Collection name in Firestore
+    }),
+    secret: process.env.SESSION_SECRET || 'your-very-secret-key-CHANGE-ME', // Use env var or a strong secret
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        httpOnly: true, // Prevent client-side JS access
+        maxAge: 1000 * 60 * 60 * 24 // Session duration (e.g., 1 day)
+    }
 }));
 // --- End Core Middleware ---
 
@@ -88,16 +98,10 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
 
 function isAuthenticated(req, res, next) {
-    // --- Roo Debug Log ---
-    console.log(`[Auth Check] Request path: ${req.path}`);
-    console.log(`[Auth Check] Session exists: ${!!req.session}`);
-    console.log(`[Auth Check] Session user exists: ${!!req.session?.user}`);
-    // --- End Roo Debug Log ---
     if (req.session.user) {
         return next();
     }
     // Return 401 if not authenticated
-    console.warn(`[Auth Check] Unauthorized access attempt for path: ${req.path}`); // Log failure
     res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
 }
 // --- End Authentication ---
@@ -458,8 +462,6 @@ app.post('/api/doc_items', isAuthenticated, async (req, res) => {
         res.status(500).json({ message: 'Failed to create document item.' });
     }
 });
-
-
 // GET /api/doc_items - Fetch items, filter by parentId or tags
 app.get('/api/doc_items', isAuthenticated, async (req, res) => {
     const parentId = req.query.parentId; // e.g., ?parentId=xxx or ?parentId=root
