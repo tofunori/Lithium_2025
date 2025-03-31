@@ -381,7 +381,10 @@ app.get('/api/facilities/:id/documents/:filename/url', isAuthenticated, async (r
 // --- End Document/Link Management Endpoints ---
 
 
-// --- Start Server ---
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`);
-});
+// --- Start Server (Commented out for Vercel) ---
+// app.listen(port, () => {
+//     console.log(`Server listening at http://localhost:${port}`);
+// });
+
+// Export the app for Vercel Serverless Functions
+module.exports = app;
