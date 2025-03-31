@@ -3,7 +3,7 @@ const fs = require('fs').promises; // Still needed for initial read in migration
 const path = require('path');
 const session = require('express-session'); // Import express-session
 const admin = require('firebase-admin'); // Firebase Admin SDK
-const FirebaseStore = require('connect-session-firebase')(session); // Use connect-session-firebase
+const FirestoreStore = require('connect-firestore')(session); // Use connect-firestore again
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
 
@@ -77,9 +77,9 @@ app.use(express.json()); // Parse JSON bodies
 app.use(express.static(path.join(__dirname, '..'))); // Serve static files from root
 // Configure Firestore session store
 app.use(session({
-    store: new FirebaseStore({
-        database: db // Pass the initialized Firestore instance
-        // Default collection name is 'sessions'
+    store: new FirestoreStore({
+        dataset: db, // Use the initialized Firestore instance
+        kind: 'express-sessions' // Collection name in Firestore
     }),
     secret: process.env.SESSION_SECRET || 'your-very-secret-key-CHANGE-ME', // Use env var or a strong secret
     resave: false,
