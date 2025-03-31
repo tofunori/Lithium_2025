@@ -24,7 +24,7 @@ var folderTreeView = null;
 
 // --- Initialization ---
 // Called by router when the documents page is loaded
-window.initDocumentsPage = function() {
+window.initDocumentsPage = async function() { // Make the main function async
     console.log("Initializing File Explorer Documents Page (New Structure)...");
 
     // --- Query DOM Elements ---
@@ -74,8 +74,24 @@ window.initDocumentsPage = function() {
     // Add Event Listeners
     setupDocumentsEventListeners();
 
-    // Initial Load - Fetch root contents (make async)
-    console.log("Performing initial fetch for root folder...");
+    // Initial Load - Fetch root contents and render tree/breadcrumbs
+    console.log("Performing initial fetch for root folder and tree...");
+    try {
+        // Use Promise.all to run fetches concurrently, await completion
+        await Promise.all([
+            fetchAndRenderFolderContents(currentFolderId), // Fetch and render root ('root') content
+            renderTreeView() // Render initial tree (root level)
+        ]);
+        // Render breadcrumbs *after* initial content/tree might be fetched
+        await renderBreadcrumbs(currentFolderId);
+        console.log("Initial page load rendering complete.");
+    } catch (error) {
+        console.error("Error during initial page load fetch/render:", error);
+        showError("Failed to load initial document view: " + error.message);
+    }
+
+    // Remove the problematic redefinition block below
+    /*
     // Use Promise.all to run fetches concurrently, await completion
     // Make initDocumentsPage async
     window.initDocumentsPage = async function() { // Make the function async
@@ -92,8 +108,9 @@ window.initDocumentsPage = function() {
         await renderBreadcrumbs(currentFolderId);
         console.log("Initial page load rendering complete.");
     }; // Close async function definition
+    */
 
-} // This closing brace might be extra now, depends on original structure
+} // End of async initDocumentsPage function
 
 // Function to setup event listeners, preventing duplicates
 function setupDocumentsEventListeners() {
@@ -114,6 +131,19 @@ function setupDocumentsEventListeners() {
     if (breadcrumbNav) {
         // Listen for clicks on breadcrumb links
         breadcrumbNav.addEventListener('click', handleBreadcrumbClick);
+
+    // Drag and Drop Listeners (using delegation on containers)
+    fileExplorerView?.addEventListener('dragstart', handleDragStart);
+    fileExplorerView?.addEventListener('dragenter', handleDragEnter);
+    fileExplorerView?.addEventListener('dragover', handleDragOver);
+    fileExplorerView?.addEventListener('dragleave', handleDragLeave);
+    fileExplorerView?.addEventListener('drop', handleDrop);
+
+    folderTreeView?.addEventListener('dragstart', handleDragStart); // Listen on tree too
+    folderTreeView?.addEventListener('dragenter', handleDragEnter);
+    folderTreeView?.addEventListener('dragover', handleDragOver);
+    folderTreeView?.addEventListener('dragleave', handleDragLeave);
+    folderTreeView?.addEventListener('drop', handleDrop);
     }
      if (fileExplorerView) {
         // Use event delegation for items within the view
@@ -325,6 +355,7 @@ function renderFolderContents(itemsArray) { // Changed parameter
         const row = tbody.insertRow();
         row.dataset.itemId = item.id; // Store item ID on the row
         row.dataset.itemType = item.type;
+        row.draggable = true; // Make the row draggable
 
         let iconClass = 'fa-question-circle'; // Default icon
         let itemLink = '#';
@@ -425,6 +456,9 @@ function buildTreeLevelHtml(itemsArray) {
 
         const li = document.createElement('li');
         li.className = 'tree-node';
+        li.draggable = true; // Make the tree node draggable
+        li.dataset.itemId = item.id; // Store ID for dragstart
+        li.dataset.itemType = 'folder'; // Mark as folder
 
         // Container for the clickable part (icon, name, toggle)
         const nodeContent = document.createElement('div');
@@ -681,9 +715,8 @@ async function handleTreeViewClick(event) { // Made async
 
 // --- Action Button Handlers (Placeholders/Basic Implementation) ---
 
-function handleNewFolderClick() {
+async function handleNewFolderClick() { // Made async
     console.log("New Folder button clicked. Current Parent:", currentFolderId);
-    // Removed facility check, rely only on currentFolderId
     if (!currentFolderId) {
         showError("Cannot determine the current folder. Please navigate to a folder first.");
         return;
@@ -700,49 +733,76 @@ function handleNewFolderClick() {
     showSuccess(`Creating folder '${cleanName}'...`);
     showError('');
 
+    let parentTags = [];
+    let facilityTagToInherit = null;
+
+    // Fetch parent tags unless parent is root
+    if (currentFolderId !== 'root') {
+        try {
+            console.log(`Fetching parent folder (${currentFolderId}) details to inherit tags...`);
+            const parentInfoResponse = await fetch(`/api/doc_items/${currentFolderId}`);
+            if (!parentInfoResponse.ok) {
+                 console.warn(`Could not fetch parent folder details (${parentInfoResponse.statusText}), proceeding without tag inheritance.`);
+            } else {
+                 const parentData = await parentInfoResponse.json();
+                 parentTags = parentData.tags || [];
+                 facilityTagToInherit = parentTags.find(tag => tag.startsWith('facility:'));
+                 console.log("Parent tags found:", parentTags, "Facility tag to inherit:", facilityTagToInherit);
+            }
+        } catch (fetchError) {
+             console.warn("Error fetching parent folder details, proceeding without tag inheritance:", fetchError);
+        }
+    }
+
     // Prepare data for the new API endpoint
     const newItemData = {
         name: cleanName,
         type: 'folder',
         parentId: currentFolderId,
-        tags: [] // Add default tags if needed, e.g., based on current filters
-        // Example: if (currentFilterTag) newItemData.tags.push(currentFilterTag);
+        tags: []
     };
 
-    fetch('/api/doc_items', { // Use the new endpoint
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newItemData)
-    })
-    .then(async response => {
+    // Inherit facility tag if found
+    if (facilityTagToInherit) {
+        newItemData.tags.push(facilityTagToInherit);
+    }
+    // TODO: Consider inheriting other tags from parentTags if needed
+
+    try {
+        const response = await fetch('/api/doc_items', { // Use the new endpoint
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newItemData)
+        });
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Failed to create folder (Status: ${response.status})`);
         }
-        return response.json();
-    })
-    .then(createdItem => { // API now returns the created item
+
+        const createdItem = await response.json(); // API now returns the created item
         console.log("Folder created successfully:", createdItem);
         showSuccess(`Folder '${cleanName}' created successfully.`);
 
         // Refresh the current folder view by re-fetching its contents
-        fetchAndRenderFolderContents(currentFolderId);
+        await fetchAndRenderFolderContents(currentFolderId);
 
         // Refresh the tree view to show the new folder
-        renderTreeView(); // Re-render the tree (might only show root level initially)
+        await renderTreeView(); // Re-render the tree
 
-    })
-    .catch(error => {
+    } catch (error) {
         console.error("Error creating folder:", error);
         showError(`Error creating folder: ${error.message}`);
         showSuccess(''); // Clear loading message
-    });
+    }
 }
+
 
 function handleUploadFileClick() {
     console.log("Upload File button clicked. Current Parent:", currentFolderId);
-    if (!currentSelectedFacilityId || !currentFolderId) {
-        showError("Please select a facility and navigate to a folder first.");
+    // Removed check for currentSelectedFacilityId
+    if (!currentFolderId) {
+        showError("Cannot determine the current folder. Please navigate to a folder first.");
         return;
     }
     // TODO: Implement a proper file upload modal/dialog
@@ -762,16 +822,38 @@ function handleUploadFileClick() {
         formData.append('parentId', currentFolderId); // Send parent folder ID
 
         try {
-            // Step 1: Upload file to storage via the old (refactored) endpoint
-            // TODO: Determine the correct facilityId context for the storage path.
-            // This might involve fetching the currentFolderId's details to get its tags,
-            // or traversing up to find a root folder if necessary.
-            // For now, using a placeholder - THIS WILL LIKELY FAIL without proper context.
-            const facilityIdForStorage = 'placeholder-facility-id'; // <<< NEEDS ACTUAL LOGIC
-            if (!facilityIdForStorage) {
-                 throw new Error("Could not determine facility context for storage path.");
+            // Step 1: Determine Facility Context for storage path and tagging
+            let facilityIdForStorage = null;
+            let parentTags = []; // Store parent tags to potentially inherit
+
+            if (currentFolderId === 'root') {
+                // If uploading to root, use a default 'uncategorized' context
+                facilityIdForStorage = '_uncategorized';
+                console.log("Uploading to root, using default storage context:", facilityIdForStorage);
+            } else {
+                // Fetch parent folder details to find facility tag
+                console.log(`Fetching parent folder (${currentFolderId}) details to find facility tag...`);
+                const parentInfoResponse = await fetch(`/api/doc_items/${currentFolderId}`);
+                if (!parentInfoResponse.ok) {
+                     throw new Error(`Could not fetch parent folder details (${parentInfoResponse.statusText})`);
+                }
+                const parentData = await parentInfoResponse.json();
+                parentTags = parentData.tags || [];
+                const facilityTag = parentTags.find(tag => tag.startsWith('facility:'));
+                if (facilityTag) {
+                    facilityIdForStorage = facilityTag.split(':')[1];
+                    console.log(`Found facility context from parent tag: ${facilityIdForStorage}`);
+                } else {
+                    // If parent isn't root and has no facility tag, default to uncategorized
+                    facilityIdForStorage = '_uncategorized';
+                    console.warn(`No 'facility:xxx' tag found on parent folder ${currentFolderId}. Defaulting to storage context: ${facilityIdForStorage}`);
+                    // throw new Error("Could not determine facility context for storage path. Ensure the parent folder is tagged with 'facility:xxx'."); // Roo: Allow upload even without tag
+                }
             }
 
+            // Step 2: Upload file to storage via the old (refactored) endpoint
+            // Use the determined context (facility ID or '_uncategorized')
+            console.log(`Uploading file to storage under context: ${facilityIdForStorage}`);
             const storageResponse = await fetch(`/api/facilities/${facilityIdForStorage}/files`, {
                 method: 'POST',
                 body: formData
@@ -785,14 +867,21 @@ function handleUploadFileClick() {
             const storageResult = await storageResponse.json();
             console.log("File stored successfully:", storageResult);
 
-            // Step 2: Create the metadata document in doc_items using the new endpoint
+            // Step 3: Create the metadata document in doc_items using the new endpoint
             showSuccess(`Creating metadata for ${storageResult.name}...`);
+
+            // Prepare tags: include facility tag if context wasn't '_uncategorized'
+            const newTags = [];
+            if (facilityIdForStorage !== '_uncategorized') {
+                 newTags.push(`facility:${facilityIdForStorage}`);
+            }
+            // TODO: Consider inheriting other relevant tags from parentTags
 
             const newItemData = {
                 name: storageResult.name,
                 type: 'file',
                 parentId: storageResult.parentId, // Use parentId passed back from storage endpoint
-                tags: [`facility:${facilityIdForStorage}`], // Add facility tag based on context
+                tags: newTags,
                 storagePath: storageResult.storagePath,
                 contentType: storageResult.contentType,
                 size: storageResult.size
@@ -815,7 +904,7 @@ function handleUploadFileClick() {
             console.log("Doc item created successfully:", createdItem);
             showSuccess(`File '${createdItem.name}' uploaded and registered successfully.`);
 
-            // Step 3: Refresh UI
+            // Step 4: Refresh UI
             fetchAndRenderFolderContents(currentFolderId);
             renderTreeView(); // Refresh tree
 
@@ -1105,6 +1194,136 @@ async function handleDeleteClick(itemId) { // Made async
         showSuccess('');
     });
 }
+
+
+// --- Drag and Drop Handlers ---
+
+var draggedItemId = null; // Store the ID of the item being dragged (Using var to avoid redeclaration errors if script loads multiple times)
+
+function handleDragStart(event) {
+    // Check if the dragged element is a table row or a tree node LI
+    const targetRow = event.target.closest('tr[draggable="true"]');
+    const targetTreeNode = event.target.closest('li.tree-node[draggable="true"]');
+
+    if (targetRow) {
+        draggedItemId = targetRow.dataset.itemId;
+        event.dataTransfer.setData('text/plain', draggedItemId);
+        event.dataTransfer.effectAllowed = 'move';
+        targetRow.style.opacity = '0.5'; // Visual feedback
+        console.log(`[DragDrop] Start dragging item (table): ${draggedItemId}`);
+    } else if (targetTreeNode) {
+        draggedItemId = targetTreeNode.dataset.itemId;
+        event.dataTransfer.setData('text/plain', draggedItemId);
+        event.dataTransfer.effectAllowed = 'move';
+        targetTreeNode.style.opacity = '0.5'; // Visual feedback
+        console.log(`[DragDrop] Start dragging item (tree): ${draggedItemId}`);
+    } else {
+        // If not dragging a valid item, prevent drag
+        event.preventDefault();
+    }
+}
+
+function handleDragEnter(event) {
+    event.preventDefault(); // Necessary to allow dropping
+    const targetFolder = event.target.closest('tr[data-item-type="folder"], li.tree-node');
+    if (targetFolder) {
+        // Don't highlight if dragging over the item being dragged itself
+        if (targetFolder.dataset.itemId !== draggedItemId) {
+             targetFolder.classList.add('drag-over-target'); // Add highlight class
+             console.log(`[DragDrop] Enter potential drop target: ${targetFolder.dataset.itemId}`);
+        }
+    }
+}
+
+function handleDragOver(event) {
+    event.preventDefault(); // Necessary to allow dropping
+    event.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragLeave(event) {
+    const targetFolder = event.target.closest('tr[data-item-type="folder"], li.tree-node');
+     if (targetFolder) {
+        targetFolder.classList.remove('drag-over-target'); // Remove highlight class
+        console.log(`[DragDrop] Leave potential drop target: ${targetFolder.dataset.itemId}`);
+    }
+    // Also remove from any other elements if the leave event fires on a child
+    const highlighted = event.currentTarget.querySelector('.drag-over-target');
+    highlighted?.classList.remove('drag-over-target');
+}
+
+async function handleDrop(event) {
+    event.preventDefault();
+    const targetFolderElement = event.target.closest('tr[data-item-type="folder"], li.tree-node');
+    const droppedItemId = event.dataTransfer.getData('text/plain');
+
+    // Reset opacity of the dragged item (find it by ID)
+    const draggedElement = document.querySelector(`[data-item-id="${droppedItemId}"][draggable="true"]`);
+    if (draggedElement) draggedElement.style.opacity = '1';
+
+    // Remove highlight from target
+    targetFolderElement?.classList.remove('drag-over-target');
+    const highlighted = event.currentTarget.querySelector('.drag-over-target');
+    highlighted?.classList.remove('drag-over-target');
+
+    if (!targetFolderElement) {
+        console.log('[DragDrop] Drop occurred outside a valid folder target.');
+        draggedItemId = null;
+        return;
+    }
+
+    const targetFolderId = targetFolderElement.dataset.itemId;
+
+    if (!droppedItemId || !targetFolderId) {
+        console.error('[DragDrop] Missing dragged item ID or target folder ID.');
+        draggedItemId = null;
+        return;
+    }
+
+    if (droppedItemId === targetFolderId) {
+        console.log('[DragDrop] Dropped item onto itself. No action.');
+        draggedItemId = null;
+        return;
+    }
+
+    console.log(`[DragDrop] Dropped item ${droppedItemId} onto folder ${targetFolderId}`);
+
+    // --- Call Backend API to Move Item ---
+    showSuccess(`Moving item...`); // Provide user feedback
+    showError('');
+    try {
+        const response = await fetch(`/api/doc_items/${droppedItemId}/move`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                // Add authentication headers if needed (e.g., CSRF token)
+            },
+            body: JSON.stringify({ newParentId: targetFolderId })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Move failed (Status: ${response.status})`);
+        }
+
+        showSuccess('Item moved successfully!');
+        console.log(`[DragDrop] API call successful: Moved ${droppedItemId} to ${targetFolderId}`);
+
+        // --- Refresh UI ---
+        // 1. Refresh the current folder view
+        await fetchAndRenderFolderContents(currentFolderId);
+        // 2. Refresh the entire tree view (simplest approach)
+        await renderTreeView();
+        // 3. Optionally, refresh breadcrumbs if the current folder was moved (less common)
+        // await renderBreadcrumbs(currentFolderId);
+
+    } catch (error) {
+        console.error('[DragDrop] Error moving item via API:', error);
+        showError(`Move failed: ${error.message}`);
+    } finally {
+        draggedItemId = null; // Reset dragged item ID
+    }
+}
+
 
 
 // --- Utility Functions ---

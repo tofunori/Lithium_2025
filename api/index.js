@@ -258,31 +258,46 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
 app.post('/api/facilities/:id/files', isAuthenticated, upload.single('document'), async (req, res) => {
     // POST Upload a file
     const facilityId = req.params.id;
+    // console.log(`[File Upload] Received request for facilityId: ${facilityId}`); // Roo Debug Log 1 - Removed
     const parentId = req.body.parentId;
     if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
     if (!parentId) return res.status(400).json({ message: 'Missing parentId in request body.' });
 
     const originalFilename = req.file.originalname;
     const fileId = uuidv4();
-    const storagePath = `${facilityId}/files/${fileId}-${originalFilename}`;
-    try {
-        const docRef = db.collection('facilities').doc(facilityId);
-        const docSnap = await docRef.get();
-        if (!docSnap.exists) return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
+    let storagePath; // Define storagePath variable
 
-        const facilityData = docSnap.data();
-        const filesystem = facilityData.properties?.filesystem;
-        if (!filesystem || typeof filesystem !== 'object') {
-             console.error(`Filesystem missing or invalid for facility ${facilityId}`);
-             return res.status(500).json({ message: 'Internal error: Facility filesystem structure is missing or invalid.' });
-        }
-        const parentFolder = filesystem[parentId];
-        if (!parentFolder || parentFolder.type !== 'folder') {
-            // Parent validation will happen in the /api/doc_items call later
-            // return res.status(400).json({ message: `Invalid parentId: Folder with ID ${parentId} not found.` });
+    try {
+        // Handle the '_uncategorized' case specifically
+        if (facilityId === '_uncategorized') {
+            console.log(`[File Upload] Handling as uncategorized upload.`);
+            storagePath = `uncategorized/files/${fileId}-${originalFilename}`;
+            // Skip Firestore facility check for uncategorized
+        } else {
+            // Existing logic for specific facility IDs
+            const docRef = db.collection('facilities').doc(facilityId);
+            const docSnap = await docRef.get();
+            if (!docSnap.exists) { // Correctly check exists before logging failure
+                // console.log(`[File Upload] Firestore check failed for facilityId: ${facilityId}`); // Roo Debug Log 2 - Removed
+                return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
+            }
+            storagePath = `${facilityId}/files/${fileId}-${originalFilename}`;
+
+            // Optional: Keep filesystem checks if needed, though maybe less relevant now?
+            const facilityData = docSnap.data();
+            const filesystem = facilityData.properties?.filesystem;
+            if (!filesystem || typeof filesystem !== 'object') {
+                 console.error(`Filesystem missing or invalid for facility ${facilityId}`);
+                 return res.status(500).json({ message: 'Internal error: Facility filesystem structure is missing or invalid.' });
+            }
+            const parentFolder = filesystem[parentId];
+            if (!parentFolder || parentFolder.type !== 'folder') {
+                // Parent validation will happen in the /api/doc_items call later
+            }
         }
 
         // --- Upload to Storage ---
+        console.log(`[File Upload] Determined storage path: ${storagePath}`);
         const fileUpload = bucket.file(storagePath);
         await fileUpload.save(req.file.buffer, { metadata: { contentType: req.file.mimetype } });
         console.log(`File ${originalFilename} (ID: ${fileId}) uploaded to Firebase Storage at ${storagePath}`);
@@ -897,6 +912,82 @@ app.delete('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res
     }
 });
 */
+
+// PATCH /api/doc_items/:itemId/move - Move an item to a new parent folder
+app.patch('/api/doc_items/:itemId/move', isAuthenticated, async (req, res) => {
+    const itemId = req.params.itemId;
+    const { newParentId } = req.body;
+
+    console.log(`[Move Item] Request to move item ${itemId} to parent ${newParentId}`);
+
+    if (!itemId || !newParentId) {
+        return res.status(400).json({ message: 'Missing itemId or newParentId in request.' });
+    }
+
+    if (itemId === newParentId) {
+        return res.status(400).json({ message: 'Cannot move an item into itself.' });
+    }
+
+    const itemRef = db.collection('doc_items').doc(itemId);
+    let newParentRef;
+    let newParentSnap;
+
+    try {
+        // --- Validation ---
+        // 1. Check if item being moved exists
+        const itemSnap = await itemRef.get();
+        if (!itemSnap.exists) {
+            return res.status(404).json({ message: `Item with ID ${itemId} not found.` });
+        }
+        const itemData = itemSnap.data();
+
+        // 2. Check if the new parent exists and is a folder (or 'root')
+        if (newParentId !== 'root') {
+            newParentRef = db.collection('doc_items').doc(newParentId);
+            newParentSnap = await newParentRef.get();
+            if (!newParentSnap.exists) {
+                return res.status(404).json({ message: `Target parent folder with ID ${newParentId} not found.` });
+            }
+            if (newParentSnap.data().type !== 'folder') {
+                return res.status(400).json({ message: `Target parent with ID ${newParentId} is not a folder.` });
+            }
+        }
+
+        // 3. Prevent moving a folder into one of its own descendants
+        if (itemData.type === 'folder' && newParentId !== 'root') {
+            let currentAncestorId = newParentId;
+            let safety = 0;
+            while (currentAncestorId && currentAncestorId !== 'root' && safety < 20) {
+                 safety++;
+                 if (currentAncestorId === itemId) {
+                     return res.status(400).json({ message: 'Cannot move a folder into one of its own subfolders.' });
+                 }
+                 // Fetch the parent of the current ancestor
+                 const ancestorRef = db.collection('doc_items').doc(currentAncestorId);
+                 const ancestorSnap = await ancestorRef.get();
+                 if (!ancestorSnap.exists) break; // Should not happen if data is consistent
+                 currentAncestorId = ancestorSnap.data().parentId;
+            }
+        }
+        // --- End Validation ---
+
+
+        // --- Perform Update ---
+        await itemRef.update({
+            parentId: newParentId,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp() // Update timestamp
+        });
+        // --- End Update ---
+
+        console.log(`[Move Item] Successfully moved item ${itemId} to parent ${newParentId}`);
+        res.status(200).json({ message: 'Item moved successfully.' });
+
+    } catch (error) {
+        console.error(`[Move Item] Error moving item ${itemId} to ${newParentId}:`, error);
+        res.status(500).json({ message: 'Failed to move item.' });
+    }
+});
+
 
 /* // [Refactored] GET /api/facilities/:id/files/:fileId/url - Use GET /api/doc_items/:id/download-url instead
 app.get('/api/facilities/:id/files/:fileId/url', isAuthenticated, async (req, res) => {

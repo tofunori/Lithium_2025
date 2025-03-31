@@ -746,6 +746,25 @@ body.dark-theme .form-switch .form-check-label i.fa-sun {
     color: var(--white-bg); /* Ensure icon color matches active text */
 }
 
+
+
+#fileExplorerView {
+    min-height: 300px; /* Adjust value as needed */
+    /* Removed flex properties to allow table to flow naturally */
+}
+
+#fileExplorerView > p {
+     /* Keep centering for placeholder messages */
+     width: 100%;
+     text-align: center;
+     /* Add some padding if needed when centered */
+     padding-top: 50px; /* Example padding */
+     padding-bottom: 50px; /* Example padding */
+}
+
+/* Removed rule for table as flex is removed from parent */
+/* #fileExplorerView > .table-responsive, ... */
+
 /* Indentation for nested levels (already handled by ps-3 on ul in JS) */
 /* .tree-node ul { */
 /*     padding-left: 1rem; */ /* Bootstrap's ps-3 is 1rem */
@@ -757,3 +776,18 @@ body.dark-theme .form-switch .form-check-label i.fa-sun {
 /*     margin-right: 5px; */
 /* } */
 
+
+
+
+/* Drag and Drop Highlighting */
+.drag-over-target {
+    background-color: #e0f7ff !important; /* Light blue background */
+    outline: 2px dashed #007bff; /* Blue dashed outline */
+    outline-offset: -2px;
+}
+
+/* Style for dragged item (optional) */
+tr[draggable="true"]:active,
+li.tree-node[draggable="true"]:active {
+    cursor: grabbing; /* Indicate dragging */
+}
