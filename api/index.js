@@ -88,10 +88,16 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
 
 function isAuthenticated(req, res, next) {
+    // --- Roo Debug Log ---
+    console.log(`[Auth Check] Request path: ${req.path}`);
+    console.log(`[Auth Check] Session exists: ${!!req.session}`);
+    console.log(`[Auth Check] Session user exists: ${!!req.session?.user}`);
+    // --- End Roo Debug Log ---
     if (req.session.user) {
         return next();
     }
     // Return 401 if not authenticated
+    console.warn(`[Auth Check] Unauthorized access attempt for path: ${req.path}`); // Log failure
     res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
 }
 // --- End Authentication ---
