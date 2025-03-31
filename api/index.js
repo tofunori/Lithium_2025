@@ -3,8 +3,7 @@ const fs = require('fs').promises; // Still needed for initial read in migration
 const path = require('path');
 const session = require('express-session'); // Import express-session
 const admin = require('firebase-admin'); // Firebase Admin SDK
-const connectFirestore = require('connect-firestore/index'); // Import the package explicitly
-const FirestoreStore = connectFirestore(session); // Initialize the store factory
+const FirestoreStore = require('connect-firestore')(session); // Initialize the store factory
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
 
