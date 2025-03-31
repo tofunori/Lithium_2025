@@ -481,7 +481,6 @@ app.put('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res) =
 app.delete('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res) => {
     const facilityId = req.params.id;
     const itemId = req.params.itemId;
-    console.log(`--- DELETE Request Received for facility ${facilityId}, item ${itemId} ---`); // Initial entry log
 
     try {
         const docRef = db.collection('facilities').doc(facilityId);
@@ -495,7 +494,6 @@ app.delete('/api/facilities/:id/items/:itemId', isAuthenticated, async (req, res
             const facilityData = docSnap.data();
             const filesystem = facilityData.properties?.filesystem;
             if (!filesystem || typeof filesystem !== 'object') throw { status: 500, message: 'Internal error: Facility filesystem structure is missing or invalid.' };
-            console.log('DEBUG (DELETE): Filesystem keys found:', Object.keys(filesystem)); // Log keys earlier
 
             const itemToDelete = filesystem[itemId];
             if (!itemToDelete) throw { status: 404, message: `Item with ID ${itemId} not found.` }; // This is likely where the 404 happens
