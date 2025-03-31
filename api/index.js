@@ -65,7 +65,8 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'your-very-secret-key', // Use environment variable for secret!
     resave: false,
     saveUninitialized: false, // Don't save sessions for non-logged-in users
-    cookie: { secure: process.env.NODE_ENV === 'production' } // Set secure based on environment
+    // Temporarily disable secure cookie for debugging Vercel session issues
+    cookie: { secure: false } // Set secure based on environment // TODO: Revert to process.env.NODE_ENV === 'production'
 }));
 
 // Simple hardcoded credentials (replace with database lookup in real app)
