@@ -1,89 +1,66 @@
-# Plan: Implement File Explorer with Folder Functionality
+# Plan: Add Tree View to Documents Page
 
-**Goal:** Implement a file explorer interface for the documents page, allowing users to create and manage folders within each facility to organize files and links hierarchically.
+This document outlines the plan to add a file explorer tree view to the `documents.html` page for improved navigation.
 
-**Phase 1: Backend & Data Structure Changes**
+## Current Situation
 
-1.  **Modify Data Structure:**
-    *   Replace the current flat `documents` array in the facility data (likely stored in or influencing `data/facilities.json` and handled by `api/index.js`) with a new hierarchical structure, perhaps named `filesystem`.
-    *   This structure will represent folders containing children (sub-folders, files, links). Each item (folder, file, link) will need a unique ID.
-    *   *Example Snippet:*
-        ```json
-        "filesystem": {
-          "root": {
-            "id": "root-facilityId", "type": "folder", "name": "/", "children": [
-              { "id": "folder-uuid1", "type": "folder", "name": "Reports", "createdAt": "...", "children": [...] },
-              { "id": "file-uuid2", "type": "file", "name": "datasheet.pdf", "size": 12345, "uploadedAt": "...", ... },
-              { "id": "link-uuid3", "type": "link", "name": "Website", "url": "...", "addedAt": "...", ... }
-            ]
-          }
-        }
-        ```
-2.  **Update Backend API (`api/index.js`):**
-    *   Modify `GET /api/facilities/:id` to return the new `filesystem` structure.
-    *   Create **new endpoints** for:
-        *   Creating folders (`POST /api/facilities/:id/folders`). Requires `parentId` and `name`.
-        *   Renaming/Moving items (`PUT /api/facilities/:id/items/:itemId`). Requires `action` ('rename' or 'move'), `newName` or `newParentId`.
-        *   Deleting items (`DELETE /api/facilities/:id/items/:itemId`).
-    *   Modify **existing endpoints**:
-        *   File Upload (`POST /api/facilities/:id/documents`): Add `parentId` parameter to specify target folder (defaults to root). Consider changing endpoint to `/api/facilities/:id/files`.
-        *   Add Link (`POST /api/facilities/:id/links`): Add `parentId` parameter. Standardize input to use `name` instead of `description`.
-        *   Get Download URL (`GET /api/facilities/:id/documents/...`): Change to use unique file ID instead of filename (e.g., `GET /api/facilities/:id/files/:fileId/url`).
-3.  **Data Migration:** Plan how to convert existing documents/links into the new hierarchical structure (likely starting at the root). This might involve a script or logic within the API on first load.
+*   **Data Loading:** The entire file/folder structure for a selected facility is fetched and stored client-side in `currentFilesystemData`.
+*   **Navigation:** Currently uses breadcrumbs and clicking items in the main table view.
+*   **Layout:** Single main content area for breadcrumbs and file table.
 
-**Phase 2: Frontend UI & Logic Changes**
+## Rationale for Tree View
 
-1.  **Update HTML (`documents.html`):**
-    *   Replace the current `<ul id="documentList">` with a container for a dynamic table or grid view to display folder contents.
-    *   Add a breadcrumb navigation element above the content view.
-    *   Add buttons for "New Folder", "Upload File", "Add Link".
-    *   Plan for context menus or action buttons on items for Rename/Move/Delete.
-2.  **Update JavaScript (`js/documents.js`):**
-    *   **Data Handling:** Fetch and manage the hierarchical `filesystem` data.
-    *   **Rendering:**
-        *   Implement `renderFolderContents(folderId)` to display items (folders, files, links) for the current folder in the main view. Use appropriate icons.
-        *   Implement `renderBreadcrumbs(folderId)` to update the navigation path.
-    *   **State:** Track the `currentFolderId`.
-    *   **Event Handling:**
-        *   Handle clicks on folders to navigate into them (update `currentFolderId`, re-render).
-        *   Handle clicks on breadcrumbs to navigate up.
-        *   Handle clicks on files (fetch download URL) and links (open directly).
-        *   Implement logic for "New Folder", "Upload", "Add Link" buttons (show forms/modals, include `parentId`, call API).
-        *   Implement logic for Rename, Move, Delete actions (call API, update UI).
-    *   **"All Facilities" View:** Initially, this view might be simplified, perhaps showing facilities as top-level read-only folders, or disabling folder management actions. Full integration can be a later step.
+*   Provides a persistent overview of the folder hierarchy.
+*   Allows quick navigation between different folders.
+*   Leverages existing client-side data (`currentFilesystemData`), making it feasible without extra server calls.
 
-**Visual Plan (Mermaid Diagram):**
+## Proposed Plan
+
+### 1. Modify HTML (`documents.html`)
+
+*   Restructure the `#documentManagementSection` using Bootstrap's grid system (e.g., `row` with `col-md-3` for the tree and `col-md-9` for the main content).
+*   Add a dedicated container for the tree view: `<div id="folderTreeView" class="col-md-3"></div>`.
+*   Move the existing breadcrumbs (`#breadcrumbNav`), file explorer card (`#fileExplorerView`), and action buttons (`#newFolderButton`, etc.) into the right column (`<div class="col-md-9">...</div>`).
+
+### 2. Modify JavaScript (`js/documents.js`)
+
+*   **Create `renderTreeView(filesystemData, rootFolderId, containerElement)` function:**
+    *   Recursively traverses `filesystemData` from the `rootFolderId`.
+    *   Generates nested HTML (`ul`/`li`) for the tree structure.
+    *   Include expand/collapse functionality.
+    *   Folder items (`li`) should have a clickable element storing the `folderId`.
+*   **Call `renderTreeView`:** In `handleFacilitySelection`, after fetching `currentFilesystemData`, call `renderTreeView` to populate `#folderTreeView`.
+*   **Add Tree Click Event Listener:** Use event delegation on `#folderTreeView`. On folder click:
+    *   Prevent default behavior.
+    *   Get the `folderId`.
+    *   Call `handleFolderClick(folderId)` to update the main view and breadcrumbs.
+*   **Update Active State:** Modify `handleFolderClick` and/or `renderTreeView` to:
+    *   Visually highlight the currently selected folder in the tree.
+    *   Ensure the selected node is visible (expanded).
+*   **Initial State:** Clear/hide the tree view when no facility is selected.
+
+### 3. Modify CSS (`css/styles.css`)
+
+*   Add styles for:
+    *   Tree indentation.
+    *   Folder icons (consider expanded/collapsed states).
+    *   Highlighting the active/selected folder.
+    *   Hover effects, spacing, etc.
+
+## Visual Layout Idea
 
 ```mermaid
-graph TD
-    A[User selects Facility] --> B{Fetch Facility Data (inc. Filesystem)};
-    B --> C{Render Breadcrumbs (Root)};
-    B --> D{Render Folder Contents (Root)};
-
-    subgraph User Actions
-        E[Click Folder] --> F{Update Current Folder};
-        G[Click Breadcrumb] --> F;
-        H[Click New Folder] --> I{Show Name Prompt};
-        J[Click Upload/Add Link] --> K{Show Form (inc. Parent Folder)};
-        L[Click Rename/Move/Delete] --> M{Show Prompt/Options};
+graph LR
+    subgraph documents.html
+        direction LR
+        subgraph LeftColumn [col-md-3]
+            TreeView(Folder Tree View<br/>- Expand/Collapse<br/>- Click to Navigate)
+        end
+        subgraph RightColumn [col-md-9]
+            Breadcrumbs --> MainView(File/Folder Table<br/>- Shows content of selected folder)
+            ActionButtons(New Folder / Upload / Add Link) --> MainView
+        end
     end
 
-    F --> C;
-    F --> D;
-
-    I --> N[Call API: Create Folder];
-    K --> O[Call API: Upload/Add Link];
-    M --> P[Call API: Rename/Move/Delete];
-
-    N --> Q{Update Local Filesystem};
-    O --> Q;
-    P --> Q;
-
-    Q --> C;
-    Q --> D;
-
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style N fill:#ccf,stroke:#333,stroke-width:2px
-    style O fill:#ccf,stroke:#333,stroke-width:2px
-    style P fill:#ccf,stroke:#333,stroke-width:2px
-    style Q fill:#f9f,stroke:#333,stroke-width:2px
+    style LeftColumn fill:#f9f,stroke:#333,stroke-width:2px
+    style RightColumn fill:#ccf,stroke:#333,stroke-width:2px

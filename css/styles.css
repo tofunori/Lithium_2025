@@ -701,3 +701,59 @@ body.dark-theme .form-switch .form-check-label i.fa-moon {
 body.dark-theme .form-switch .form-check-label i.fa-sun {
     color: #ffcc00; /* Yellow color for sun icon */
 }
+
+
+/* --- Documents Page - File Explorer Tree View --- */
+
+#folderTreeViewContainer {
+    /* Styles for the container if needed, e.g., padding */
+    padding-top: 0.5rem; /* Align with main content heading */
+}
+
+#folderTreeView {
+    /* Styles for the scrollable area */
+    max-height: 65vh; /* Adjust as needed */
+    overflow-y: auto;
+    padding-right: 5px; /* Space for scrollbar */
+}
+
+.tree-node {
+    /* Spacing for tree items */
+    margin-bottom: 2px;
+}
+
+.tree-link {
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-link:hover {
+    background-color: var(--navbar-link-hover-bg);
+    color: var(--link-hover-color);
+}
+
+.tree-link.active {
+    background-color: var(--primary-color);
+    color: var(--white-bg);
+    font-weight: 500;
+}
+
+.tree-link.active i {
+    color: var(--white-bg); /* Ensure icon color matches active text */
+}
+
+/* Indentation for nested levels (already handled by ps-3 on ul in JS) */
+/* .tree-node ul { */
+/*     padding-left: 1rem; */ /* Bootstrap's ps-3 is 1rem */
+/* } */
+
+/* Optional: Add expand/collapse icons later */
+/* .tree-node .toggle-icon { */
+/*     cursor: pointer; */
+/*     margin-right: 5px; */
+/* } */
+
