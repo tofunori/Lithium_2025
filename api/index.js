@@ -6,8 +6,9 @@ const admin = require('firebase-admin'); // Firebase Admin SDK
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 
 const app = express();
-const port = 3000;
-const dataFilePath = path.join(__dirname, 'data', 'facilities.json');
+const port = 3000; // Port is less relevant in serverless, but keep for consistency
+// Adjust data file path relative to the new location inside 'api' directory
+const dataFilePath = path.join(__dirname, '..', 'data', 'facilities.json');
 
 // --- Firebase Initialization ---
 // --- Firebase Initialization using Environment Variables ---
@@ -22,17 +23,23 @@ if (!serviceAccountJson) {
 }
 
 try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: firebaseBucketName
-    });
-    console.log('Firebase Admin SDK initialized successfully.');
+    // Check if Firebase app is already initialized (important in serverless environments)
+    if (!admin.apps.length) {
+        const serviceAccount = JSON.parse(serviceAccountJson);
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            storageBucket: firebaseBucketName
+        });
+        console.log('Firebase Admin SDK initialized successfully.');
+    } else {
+        console.log('Firebase Admin SDK already initialized.');
+    }
 } catch (error) {
     console.error('Error initializing Firebase Admin SDK:', error);
     // Consider exiting the process if Firebase is essential
     // process.exit(1);
 }
+// Get bucket instance after initialization check
 const bucket = admin.storage().bucket();
 // --- End Firebase Initialization ---
 
@@ -50,19 +57,20 @@ const upload = multer({
 app.use(express.json()); // Needed for parsing link data
 
 // Middleware to serve static files (HTML, CSS, JS, images) from the root directory
-app.use(express.static(path.join(__dirname)));
+// Adjust static path relative to the new location inside 'api' directory
+app.use(express.static(path.join(__dirname, '..')));
 
 // Session Configuration
 app.use(session({
-    secret: 'your-very-secret-key', // CHANGE THIS in a real app! Use environment variable.
+    secret: process.env.SESSION_SECRET || 'your-very-secret-key', // Use environment variable for secret!
     resave: false,
     saveUninitialized: false, // Don't save sessions for non-logged-in users
-    cookie: { secure: false } // Set to true if using HTTPS
+    cookie: { secure: process.env.NODE_ENV === 'production' } // Set secure based on environment
 }));
 
 // Simple hardcoded credentials (replace with database lookup in real app)
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'password';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
 
 
 // Middleware function to check if user is authenticated
@@ -75,6 +83,7 @@ function isAuthenticated(req, res, next) {
 
 
 // --- API Endpoints ---
+// Note: Route paths remain the same (/api/...) as Vercel handles the base path
 
 // POST Login
 app.post('/api/login', (req, res) => {
@@ -119,7 +128,12 @@ app.get('/api/facilities', async (req, res) => {
         res.json(JSON.parse(data));
     } catch (err) {
         console.error("Error reading facility data:", err);
-        res.status(500).send('Error reading facility data');
+        // Check if the error is because the file doesn't exist (might happen on first deploy before volume mount?)
+        if (err.code === 'ENOENT') {
+             res.status(404).send('Facility data file not found.');
+        } else {
+             res.status(500).send('Error reading facility data');
+        }
     }
 });
 
@@ -137,12 +151,18 @@ app.get('/api/facilities/:id', async (req, res) => {
         res.json(facility);
     } catch (err) {
         console.error(`Error reading facility data for ID ${facilityId}:`, err);
-        res.status(500).send(`Error reading facility data for ID ${facilityId}`);
+         if (err.code === 'ENOENT') {
+             res.status(404).send('Facility data file not found.');
+        } else {
+            res.status(500).send(`Error reading facility data for ID ${facilityId}`);
+        }
     }
 });
 
 // POST (create) a new facility - Protected
+// !! WARNING: This will likely NOT work reliably on Vercel's default filesystem !!
 app.post('/api/facilities', isAuthenticated, async (req, res) => {
+    console.warn("Attempting to write to facilities.json on Vercel - this may not persist.");
     try {
         if (!req.body || !req.body.properties || !req.body.properties.name) {
             return res.status(400).json({ message: 'Missing required facility data (e.g., name).' });
@@ -163,8 +183,19 @@ app.post('/api/facilities', isAuthenticated, async (req, res) => {
             newFacilityFeature.properties.documents = [];
         }
 
-        const data = await fs.readFile(dataFilePath, 'utf8');
-        let facilitiesData = JSON.parse(data);
+        let facilitiesData;
+        try {
+            const data = await fs.readFile(dataFilePath, 'utf8');
+            facilitiesData = JSON.parse(data);
+        } catch (readErr) {
+             if (readErr.code === 'ENOENT') {
+                 console.log('facilities.json not found, creating new structure.');
+                 facilitiesData = { type: "FeatureCollection", features: [] };
+             } else {
+                 throw readErr; // Re-throw other read errors
+             }
+        }
+
 
         const existingIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
         if (existingIndex !== -1) {
@@ -172,9 +203,10 @@ app.post('/api/facilities', isAuthenticated, async (req, res) => {
         }
 
         facilitiesData.features.push(newFacilityFeature);
+        // Attempt write (may fail or be ephemeral on Vercel)
         await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
 
-        console.log(`Facility ${facilityId} created successfully.`);
+        console.log(`Facility ${facilityId} created (attempted write).`);
         res.status(201).json(newFacilityFeature);
 
     } catch (err) {
@@ -185,13 +217,26 @@ app.post('/api/facilities', isAuthenticated, async (req, res) => {
 
 
 // PUT (update) a specific facility by ID - Protected
+// !! WARNING: This will likely NOT work reliably on Vercel's default filesystem !!
 app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
+    console.warn("Attempting to write to facilities.json on Vercel - this may not persist.");
     const facilityId = req.params.id;
     const updatedProperties = req.body;
 
     try {
-        const data = await fs.readFile(dataFilePath, 'utf8');
-        let facilitiesData = JSON.parse(data);
+        let facilitiesData;
+         try {
+            const data = await fs.readFile(dataFilePath, 'utf8');
+            facilitiesData = JSON.parse(data);
+        } catch (readErr) {
+             if (readErr.code === 'ENOENT') {
+                 console.error(`Cannot update facility ${facilityId}: data file not found.`);
+                 return res.status(404).json({ message: `Cannot update: Facility data file not found.` });
+             } else {
+                 throw readErr; // Re-throw other read errors
+             }
+        }
+
         const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
 
         if (facilityIndex === -1) {
@@ -209,9 +254,10 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
             documents: updatedProperties.documents || existingDocuments
         };
 
+        // Attempt write (may fail or be ephemeral on Vercel)
         await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
 
-        console.log(`Facility ${facilityId} updated successfully.`);
+        console.log(`Facility ${facilityId} updated (attempted write).`);
         res.json(facilitiesData.features[facilityIndex].properties);
 
     } catch (err) {
@@ -224,7 +270,9 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
 // --- Document/Link Management Endpoints ---
 
 // POST Upload a document file for a specific facility
+// !! WARNING: Updates to facilities.json part will likely NOT work reliably on Vercel's default filesystem !!
 app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('document'), async (req, res) => {
+    console.warn("Attempting to write document metadata to facilities.json on Vercel - this may not persist.");
     const facilityId = req.params.id;
 
     if (!req.file) {
@@ -242,13 +290,33 @@ app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('docume
         });
         console.log(`File ${originalFilename} uploaded to Firebase Storage at ${destination}`);
 
-        // --- Update facilities.json ---
-        const data = await fs.readFile(dataFilePath, 'utf8');
-        let facilitiesData = JSON.parse(data);
+        // --- Update facilities.json (Attempt write - may fail or be ephemeral) ---
+         let facilitiesData;
+         try {
+            const data = await fs.readFile(dataFilePath, 'utf8');
+            facilitiesData = JSON.parse(data);
+        } catch (readErr) {
+             if (readErr.code === 'ENOENT') {
+                 console.error(`Cannot add document for facility ${facilityId}: data file not found.`);
+                 // Proceed with upload but warn user metadata wasn't saved
+                 return res.status(201).json({
+                     message: 'File uploaded to storage, but could not update facility data file (not found).',
+                     storagePath: destination
+                 });
+             } else {
+                 throw readErr; // Re-throw other read errors
+             }
+        }
+
         const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
 
         if (facilityIndex === -1) {
-            return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
+             console.error(`Cannot add document for facility ${facilityId}: facility not found in data file.`);
+             // Proceed with upload but warn user metadata wasn't saved
+             return res.status(201).json({
+                 message: 'File uploaded to storage, but could not find facility in data file to update metadata.',
+                 storagePath: destination
+             });
         }
 
         if (!facilitiesData.features[facilityIndex].properties.documents) {
@@ -279,18 +347,21 @@ app.post('/api/facilities/:id/documents', isAuthenticated, upload.single('docume
         await fs.writeFile(dataFilePath, JSON.stringify(facilitiesData, null, 2), 'utf8');
 
         res.status(201).json({
-            message: 'File uploaded successfully',
+            message: 'File uploaded and metadata updated (attempted write)',
             documents: facilitiesData.features[facilityIndex].properties.documents
         });
 
     } catch (err) {
         console.error(`Error uploading file for facility ${facilityId}:`, err);
-        res.status(500).json({ message: 'Error uploading file.' });
+        // Distinguish between storage upload error and file write error if possible
+        res.status(500).json({ message: 'Error processing file upload.' });
     }
 });
 
 // POST Add a website link for a specific facility
+// !! WARNING: This will likely NOT work reliably on Vercel's default filesystem !!
 app.post('/api/facilities/:id/links', isAuthenticated, async (req, res) => {
+     console.warn("Attempting to write link metadata to facilities.json on Vercel - this may not persist.");
     const facilityId = req.params.id;
     const { url, description } = req.body;
 
@@ -306,13 +377,25 @@ app.post('/api/facilities/:id/links', isAuthenticated, async (req, res) => {
     }
 
     try {
-        // --- Update facilities.json ---
-        const data = await fs.readFile(dataFilePath, 'utf8');
-        let facilitiesData = JSON.parse(data);
+        // --- Update facilities.json (Attempt write - may fail or be ephemeral) ---
+         let facilitiesData;
+         try {
+            const data = await fs.readFile(dataFilePath, 'utf8');
+            facilitiesData = JSON.parse(data);
+        } catch (readErr) {
+             if (readErr.code === 'ENOENT') {
+                 console.error(`Cannot add link for facility ${facilityId}: data file not found.`);
+                 return res.status(404).json({ message: `Cannot add link: Facility data file not found.` });
+             } else {
+                 throw readErr; // Re-throw other read errors
+             }
+        }
+
         const facilityIndex = facilitiesData.features.findIndex(feature => feature.properties.id === facilityId);
 
         if (facilityIndex === -1) {
-            return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
+             console.error(`Cannot add link for facility ${facilityId}: facility not found in data file.`);
+             return res.status(404).json({ message: `Cannot add link: Facility not found in data file.` });
         }
 
         if (!facilitiesData.features[facilityIndex].properties.documents) {
@@ -334,7 +417,7 @@ app.post('/api/facilities/:id/links', isAuthenticated, async (req, res) => {
 
         // Respond with the updated documents list for the facility
         res.status(201).json({
-            message: 'Link added successfully',
+            message: 'Link added successfully (attempted write)',
             documents: facilitiesData.features[facilityIndex].properties.documents
         });
 
@@ -354,6 +437,7 @@ app.get('/api/facilities/:id/documents/:filename/url', isAuthenticated, async (r
 
     try {
         // Optional: Verify this entry exists in facilities.json and is type 'file' before checking storage
+        // This check becomes more important if facilities.json writes fail
         // ... (read facilities.json, find facility, find document by filename, check type)
 
         const [exists] = await bucket.file(storagePath).exists();
