@@ -2,7 +2,7 @@
 
 // Removed DOMContentLoaded listener
 
-let facilitiesPageData = null; // Store fetched data globally for this page scope
+var facilitiesPageData = null; // Store fetched data globally for this page scope
 
 // NEW: Initialization function called by router
 window.initFacilitiesPage = function() {

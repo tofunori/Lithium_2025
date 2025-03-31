@@ -4,9 +4,9 @@
 
 // --- Data Loading ---
 
-let allFacilityData = null; // Store fetched data globally within this script's scope
-let mapInstance = null; // Store map instance globally for reuse/check
-let currentGeoJsonLayer = null; // Store the GeoJSON layer to easily remove/re-add
+var allFacilityData = null; // Store fetched data globally within this script's scope
+var mapInstance = null; // Store map instance globally for reuse/check
+var currentGeoJsonLayer = null; // Store the GeoJSON layer to easily remove/re-add
 
 // NEW: Initialization function to be called by the router
 window.initDashboardPage = function() {

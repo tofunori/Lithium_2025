@@ -2,10 +2,10 @@
 
 // Removed DOMContentLoaded listener
 
-let chartsPageData = null; // Cache data for this page scope
-let capacityChartInstance = null;
-let technologiesChartInstance = null;
-let regionsChartInstance = null;
+var chartsPageData = null; // Cache data for this page scope
+var capacityChartInstance = null;
+var technologiesChartInstance = null;
+var regionsChartInstance = null;
 
 // NEW: Initialization function called by router
 window.initChartsPage = function() {

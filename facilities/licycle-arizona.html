@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Title will be set dynamically -->
+    <!-- Title will be set dynamically by facility-detail.js -->
     <title>Facility Details - Lithium Battery Recycling</title>
 
     <!-- Bootstrap CSS -->
@@ -18,9 +18,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/styles.css"> <!-- Correct relative path -->
     <style>
-        /* Styles for edit mode */
+        /* Styles for edit mode (keep for facility-detail.js) */
         .editable {
             border: 1px dashed #0d6efd;
             padding: 2px 5px;
@@ -36,132 +36,119 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Navigation Placeholder -->
-        <div id="main-navigation" class="mb-4">
-             <nav class="navbar navbar-expand-lg navbar-light bg-light rounded p-2">
-                 <div class="container-fluid">
-                     <a class="navbar-brand" href="../index.html">Lithium Recycling Dashboard</a>
-                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                         <span class="navbar-toggler-icon"></span>
-                     </button>
-                     <div class="collapse navbar-collapse" id="navbarNav">
-                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                             <li class="nav-item"><a class="nav-link" href="../index.html">Map</a></li>
-                             <li class="nav-item"><a class="nav-link" href="../facilities.html">Facilities</a></li>
-                             <li class="nav-item"><a class="nav-link" href="../charts.html">Charts</a></li>
-                         </ul>
-                         <div id="authStatus" class="d-flex align-items-center">
-                             <!-- Login/Logout status will be loaded here -->
-                         </div>
-                     </div>
+        <!-- Header Placeholder -->
+        <div id="header-placeholder"></div>
+        <!-- Hidden Subtitle for this page -->
+        <p id="page-subtitle-main" style="display: none;">Facility Details</p> <!-- Generic subtitle -->
+
+        <!-- Main Content Area -->
+        <main id="main-content" data-facility-id="licycle-arizona"> <!-- Added facility ID -->
+            <!-- Unique Header Buttons (Adjusted from original file) -->
+            <div class="d-flex justify-content-end align-items-center mb-4 mt-4"> <!-- Adjusted: Removed back button, justify-content-end -->
+                 <div>
+                     <a href="#" id="editLink" class="btn btn-secondary" style="display: none;"><i class="fas fa-edit"></i> Edit</a> <!-- Changed from button to link -->
+                     <!-- Save button removed, handled on edit page -->
                  </div>
-             </nav>
-        </div>
-
-         <div class="d-flex justify-content-between align-items-center mb-4">
-             <h3 id="pageTitle">Facility Details</h3> <!-- Placeholder Title -->
-             <div>
-                 <!-- Edit button now links to the edit page -->
-                 <a href="#" id="editLink" class="btn btn-secondary" style="display: none;"><i class="fas fa-edit"></i> Edit</a>
-                 <!-- Save button is removed as saving happens on edit page -->
-             </div>
-         </div>
-
-        <!-- Header - Content set dynamically -->
-        <div id="facilityHeader" class="facility-header">
-            <div class="facility-header-content">
-                <h1 id="facilityName">Loading...</h1>
-                <p id="facilityAddress" class="lead"></p>
-                <span id="facilityStatus" class="status-badge"></span>
             </div>
-        </div>
 
-        <div class="row mt-4">
-            <div class="col-md-8">
-                <!-- Overview - Content set dynamically -->
-                <div class="facility-detail-card">
-                    <h3>Facility Overview</h3>
-                    <div id="facilityDescription">Loading description...</div> <!-- Removed editable-section -->
+            <!-- Original Content (Adapted from lines 70-163 of original file) -->
+            <!-- Header - Content set dynamically -->
+            <div id="facilityHeader" class="facility-header">
+                <div class="facility-header-content">
+                    <h1 id="facilityName">Loading...</h1>
+                    <p id="facilityAddress" class="lead"></p>
+                    <span id="facilityStatus" class="status-badge"></span>
                 </div>
+            </div>
 
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                         <!-- Specs - Content set dynamically -->
-                        <div class="facility-detail-card">
-                            <h4>Technical Specifications</h4>
-                            <ul id="techSpecsList" class="list-unstyled"> <!-- Removed editable-section -->
-                                <li><strong>Size:</strong> <span data-key="size">Loading...</span></li>
-                                <li><strong>Processing Capacity:</strong> <span data-key="capacity">Loading...</span></li>
-                                <li><strong>Technology:</strong> <span data-key="technology">Loading...</span></li>
-                                <li><strong>Start of Operations:</strong> <span data-key="yearStarted">Loading...</span></li>
-                                <li><strong>Feedstock:</strong> <span data-key="feedstock">Loading...</span></li>
-                                <li><strong>Output:</strong> <span data-key="products">Loading...</span></li>
-                            </ul>
+            <div class="row mt-4">
+                <div class="col-md-8">
+                    <!-- Overview - Content set dynamically -->
+                    <div class="facility-detail-card">
+                        <h3>Facility Overview</h3>
+                        <div id="facilityDescription">Loading description...</div> <!-- Removed editable-section -->
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                             <!-- Specs - Content set dynamically -->
+                            <div class="facility-detail-card">
+                                <h4>Technical Specifications</h4>
+                                <ul id="techSpecsList" class="list-unstyled"> <!-- Removed editable-section -->
+                                     <li><strong>Size:</strong> <span data-key="size">Loading...</span></li>
+                                     <li><strong>Processing Capacity:</strong> <span data-key="capacity">Loading...</span></li>
+                                     <li><strong>Technology:</strong> <span data-key="technology">Loading...</span></li>
+                                     <li><strong>Start of Operations:</strong> <span data-key="yearStarted">Loading...</span></li>
+                                     <li><strong>Feedstock:</strong> <span data-key="feedstock">Loading...</span></li>
+                                     <li><strong>Output:</strong> <span data-key="products">Loading...</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Env Impact - Kept static for now -->
+                            <div class="facility-detail-card">
+                                <h4>Environmental Impact</h4>
+                                <ul class="list-unstyled">
+                                     <li><strong>Water Usage:</strong> Minimal due to closed-loop water systems</li>
+                                     <li><strong>Emissions:</strong> Low emissions due to efficient processing</li>
+                                     <li><strong>Energy Consumption:</strong> Optimized for energy efficiency</li>
+                                     <li><strong>Waste Reduction:</strong> Diverts batteries from landfills</li>
+                                     <li><strong>Material Recovery Rate:</strong> >95% recovery of critical materials</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <!-- Env Impact - Kept static for now, could be made dynamic/editable -->
-                        <div class="facility-detail-card">
-                            <h4>Environmental Impact</h4>
-                            <ul class="list-unstyled">
-                                <li><strong>Water Usage:</strong> Minimal due to closed-loop water systems</li>
-                                <li><strong>Emissions:</strong> Low emissions due to efficient processing</li>
-                                <li><strong>Energy Consumption:</strong> Optimized for energy efficiency</li>
-                                <li><strong>Waste Reduction:</strong> Diverts batteries from landfills</li>
-                                <li><strong>Material Recovery Rate:</strong> >95% recovery of critical materials</li>
-                            </ul>
+
+                    <!-- Timeline - Content set dynamically -->
+                    <div class="facility-detail-card mt-4">
+                        <h4>Development Timeline</h4>
+                        <div id="facilityTimeline" class="timeline"> <!-- Removed editable-section -->
+                            <p>Loading timeline...</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Timeline - Content set dynamically -->
-                <div class="facility-detail-card mt-4">
-                    <h4>Development Timeline</h4>
-                    <div id="facilityTimeline" class="timeline"> <!-- Removed editable-section -->
-                        <!-- Timeline items will be added here -->
-                        <p>Loading timeline...</p>
+                <div class="col-md-4">
+                     <!-- Company Info - Content set dynamically -->
+                    <div class="facility-detail-card">
+                        <h4>Company Information</h4>
+                        <div class="text-center mb-3">
+                            <img id="companyLogo" src="" alt="Company Logo" class="img-fluid" style="max-height: 80px; display: none;"> <!-- Hide initially -->
+                        </div>
+                        <p id="companyDescription">Loading company info...</p>
+                        <a id="companyWebsite" href="#" target="_blank" class="btn btn-outline-primary btn-sm mt-2" style="display: none;"><i class="fas fa-external-link-alt"></i> Company Website</a>
+                    </div>
+
+                    <!-- Location Map - Content set dynamically -->
+                    <div class="facility-detail-card mt-4">
+                        <h4>Location</h4>
+                        <div id="facilityMap" style="height: 250px;"></div>
+                        <p class="mt-2">
+                            <i class="fas fa-map-marker-alt"></i> <span id="facilityAddressMap">Loading address...</span>
+                        </p>
+                    </div>
+
+                    <!-- Processing Tech - Content set dynamically -->
+                     <div class="facility-detail-card mt-4">
+                        <h4>Processing Technology</h4>
+                        <div id="technologyDescription">Loading technology details...</div> <!-- Removed editable-section -->
+                    </div>
+
+                    <!-- Related Facilities - Kept static for now -->
+                    <div class="facility-detail-card mt-4">
+                        <h4>Related Facilities</h4>
+                        <ul class="list-group">
+                            <li class="list-group-item"><a href="licycle-alabama.html">Li-Cycle Alabama Spoke</a></li>
+                            <li class="list-group-item"><a href="licycle-ontario.html">Li-Cycle Ontario Spoke</a></li>
+                            <li class="list-group-item"><a href="licycle-rochester.html">Li-Cycle North American Hub</a></li>
+                        </ul>
                     </div>
                 </div>
             </div>
+            <!-- End Original Content -->
+        </main> <!-- End Main Content Area -->
 
-            <div class="col-md-4">
-                 <!-- Company Info - Content set dynamically -->
-                <div class="facility-detail-card">
-                    <h4>Company Information</h4>
-                    <div class="text-center mb-3">
-                        <img id="companyLogo" src="" alt="Company Logo" class="img-fluid" style="max-height: 80px;">
-                    </div>
-                    <p id="companyDescription">Loading company info...</p>
-                    <a id="companyWebsite" href="#" target="_blank" class="btn btn-outline-primary btn-sm mt-2"><i class="fas fa-external-link-alt"></i> Company Website</a>
-                </div>
-
-                <!-- Location Map - Content set dynamically -->
-                <div class="facility-detail-card mt-4">
-                    <h4>Location</h4>
-                    <div id="facilityMap" style="height: 250px;"></div>
-                    <p class="mt-2">
-                        <i class="fas fa-map-marker-alt"></i> <span id="facilityAddressMap">Loading address...</span>
-                    </p>
-                </div>
-
-                <!-- Processing Tech - Content set dynamically -->
-                 <div class="facility-detail-card mt-4">
-                    <h4>Processing Technology</h4>
-                    <div id="technologyDescription">Loading technology details...</div> <!-- Removed editable-section -->
-                </div>
-
-                <!-- Related Facilities - Kept static for now -->
-                <div class="facility-detail-card mt-4">
-                    <h4>Related Facilities</h4>
-                    <ul class="list-group">
-                        <li class="list-group-item"><a href="licycle-alabama.html">Li-Cycle Alabama Spoke</a></li>
-                        <li class="list-group-item"><a href="licycle-ontario.html">Li-Cycle Ontario Spoke</a></li>
-                        <li class="list-group-item"><a href="licycle-rochester.html">Li-Cycle North American Hub</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
+    </div> <!-- End dashboard-container -->
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
@@ -169,214 +156,12 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- REMOVED Facility Data Script -->
+    <!-- Page Specific Script (Marked for dynamic loading) -->
+    <script src="../js/facility-detail.js" data-page-script="true"></script>
 
-    <script>
-        const facilityId = 'licycle-arizona'; // Hardcoded for this page - ideally get from URL path
-        let currentFacilityData = null; // Store fetched data
-        let facilityMap = null; // Store map instance
+    <!-- Common Script (Loads header, handles routing, theme, auth) -->
+    <script src="../js/common.js"></script>
 
-        // Get CSS class for facility status
-        function getStatusClass(status) {
-            if (!status) return '';
-            switch(status.toLowerCase()) {
-                case 'operating': return 'status-operating';
-                case 'under construction': return 'status-construction';
-                case 'planned': return 'status-planned';
-                case 'pilot': return 'status-pilot';
-                default: return '';
-            }
-        }
-
-        // Function to populate page elements with fetched data
-        function populatePage(facility) {
-            const props = facility.properties;
-            const geometry = facility.geometry;
-
-            document.title = `${props.name} Facility - Lithium Battery Recycling`; // Set page title
-
-            // Header
-            document.getElementById('facilityName').textContent = props.name;
-            document.getElementById('facilityAddress').textContent = props.address;
-            const statusBadge = document.getElementById('facilityStatus');
-            statusBadge.textContent = props.status;
-            statusBadge.className = `status-badge ${getStatusClass(props.status)}`; // Update class
-            const headerDiv = document.getElementById('facilityHeader');
-             if (props.facilityImage && props.facilityImage !== 'images/facilities/default.jpg') { // Check for valid image
-                 // Path from JSON is relative to root, prepend /
-                 headerDiv.style.backgroundImage = `url('/${props.facilityImage}')`;
-             } else {
-                  headerDiv.style.backgroundImage = 'none'; // Or a default background
-                  headerDiv.style.backgroundColor = '#f0f0f0'; // Example default
-             }
-
-
-            // Overview
-            // Use innerHTML carefully if props.description might contain HTML, otherwise use textContent
-            document.getElementById('facilityDescription').innerHTML = props.description || 'Not available';
-
-            // Tech Specs
-            const techSpecsList = document.getElementById('techSpecsList');
-            techSpecsList.querySelector('[data-key="size"]').textContent = props.size || 'Not specified'; // Assuming 'size' property exists
-            techSpecsList.querySelector('[data-key="capacity"]').textContent = props.capacity || 'Not specified';
-            techSpecsList.querySelector('[data-key="technology"]').textContent = props.technology || 'Not specified';
-            techSpecsList.querySelector('[data-key="yearStarted"]').textContent = props.yearStarted || props.yearPlanned || 'Not specified';
-            techSpecsList.querySelector('[data-key="feedstock"]').textContent = props.feedstock || 'Not specified';
-            techSpecsList.querySelector('[data-key="products"]').textContent = props.products || 'Not specified';
-
-            // Timeline
-            const timelineContainer = document.getElementById('facilityTimeline');
-            if (props.timeline && props.timeline.length > 0) {
-                timelineContainer.innerHTML = ''; // Clear loading text
-                props.timeline.forEach((item, index) => {
-                    const side = index % 2 === 0 ? 'left' : 'right';
-                    const timelineItem = document.createElement('div');
-                    timelineItem.className = `timeline-container ${side}`;
-                    timelineItem.innerHTML = `
-                        <div class="timeline-content">
-                            <h5>${item.year}</h5>
-                            <p>${item.event}</p>
-                        </div>`;
-                    timelineContainer.appendChild(timelineItem);
-                });
-            } else {
-                timelineContainer.innerHTML = '<p>No timeline data available.</p>';
-            }
-
-             // Company Info
-             const companyLogo = document.getElementById('companyLogo');
-             if (props.companyLogo && props.companyLogo !== 'images/logos/default.png') {
-                 companyLogo.src = `../${props.companyLogo}`;
-                 companyLogo.alt = `${props.company} Logo`;
-             } else {
-                 companyLogo.style.display = 'none'; // Hide if no logo
-             }
-             // Assuming company description is part of the main description or needs a separate field
-             document.getElementById('companyDescription').textContent = `Details about ${props.company}.`; // Placeholder - needs data field
-             const companyWebsiteLink = document.getElementById('companyWebsite');
-             if (props.website) {
-                 companyWebsiteLink.href = props.website;
-                 companyWebsiteLink.style.display = '';
-             } else {
-                 companyWebsiteLink.style.display = 'none';
-             }
-
-
-            // Location Map
-            document.getElementById('facilityAddressMap').textContent = props.address;
-            if (geometry && geometry.type === 'Point' && geometry.coordinates) {
-                const coords = [geometry.coordinates[1], geometry.coordinates[0]]; // Leaflet uses [lat, lon]
-                 if (facilityMap) facilityMap.remove(); // Remove old map if exists
-                facilityMap = L.map('facilityMap').setView(coords, 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                    maxZoom: 19
-                }).addTo(facilityMap);
-                L.marker(coords).addTo(facilityMap)
-                    .bindPopup(props.name)
-                    .openPopup();
-            } else {
-                 document.getElementById('facilityMap').innerHTML = '<p>Location data not available.</p>';
-            }
-
-             // Processing Technology Description
-             // Assuming this comes from a specific field, e.g., props.technologyDetails
-             document.getElementById('technologyDescription').innerHTML = props.technologyDetails || `Details about ${props.technology}.`; // Placeholder
-
-        }
-
-        // REMOVED Edit Mode Functions (enableEditMode, disableEditMode, saveChanges)
-
-        // --- Initial Load ---
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Hide edit button initially
-            const editButton = document.getElementById('editButton');
-            if (editButton) editButton.style.display = 'none';
-
-            // Check session status first
-            let isLoggedIn = false;
-            try {
-                const sessionResponse = await fetch('/api/session');
-                const sessionData = await sessionResponse.json();
-                isLoggedIn = sessionData.loggedIn;
-            } catch (sessionError) {
-                console.error('Error checking session status:', sessionError);
-                // Proceed without edit button if session check fails
-            }
-
-            // Now fetch facility data
-            try {
-                const response = await fetch(`/api/facilities/${facilityId}`);
-                 if (!response.ok) {
-                     if (response.status === 404) {
-                         throw new Error(`Facility with ID ${facilityId} not found.`);
-                     } else {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                     }
-                }
-                currentFacilityData = await response.json(); // Store the fetched data (full feature object)
-                populatePage(currentFacilityData);
-
-                 // Setup Edit link only if logged in
-                 const editLink = document.getElementById('editLink');
-                 if (isLoggedIn && editLink) {
-                     editLink.href = `../edit-facility.html?id=${facilityId}`; // Use correct variable name
-                     editLink.style.display = 'inline-block'; // Show edit link
-                 } else if (editLink) {
-                     editLink.style.display = 'none'; // Ensure it's hidden if not logged in
-                 }
-
-            } catch (error) {
-                console.error('Error fetching facility details:', error);
-                // Display error on the page
-                document.querySelector('.dashboard-container').innerHTML =
-                    `<div class="alert alert-danger">Error loading facility details: ${error.message}</div>
-                     <a href="../index.html" class="btn btn-outline-primary mt-3"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>`;
-            }
-
-            // Also check auth status for the header nav
-            checkAuthStatus();
-        });
-
-        // Auth Check/Logout Logic (Copied from other pages)
-        async function checkAuthStatus() {
-            const authStatusElement = document.getElementById('authStatus');
-            if (!authStatusElement) return;
-            try {
-                const response = await fetch('/api/session'); // Use relative path for API
-                const sessionData = await response.json();
-                if (sessionData.loggedIn) {
-                    authStatusElement.innerHTML = `
-                        <span class="navbar-text me-3">Welcome, ${sessionData.user.username}!</span>
-                        <!-- Removed Add Facility button from detail page nav -->
-                        <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger">Logout</a>
-                    `;
-                    const logoutLink = document.getElementById('logoutLink');
-                    if(logoutLink) logoutLink.addEventListener('click', handleLogout);
-                } else {
-                    authStatusElement.innerHTML = `<a href="../login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`; // Adjusted path for login link
-                }
-            } catch (error) {
-                console.error('Error checking auth status:', error);
-                authStatusElement.innerHTML = '<span class="text-danger small">Session check failed</span>';
-            }
-        }
-
-        async function handleLogout(event) {
-            event.preventDefault();
-            try {
-                const response = await fetch('/api/logout'); // Use relative path for API
-                const result = await response.json();
-                if (result.success) {
-                    window.location.href = '../index.html'; // Go to dashboard after logout
-                } else {
-                    alert('Logout failed. Please try again.');
-                }
-            } catch (error) {
-                console.error('Logout error:', error);
-                alert('An error occurred during logout.');
-            }
-        }
-    </script>
+    <!-- Removed old inline script block -->
 </body>
 </html>

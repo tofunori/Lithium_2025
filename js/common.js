@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const headerPlaceholder = document.getElementById('header-placeholder');
 
     if (headerPlaceholder) {
-        fetch('includes/_header.html')
+        fetch('/includes/_header.html') // Changed to absolute path
             .then(response => response.ok ? response.text() : Promise.reject(`HTTP error loading header! status: ${response.status}`))
             .then(html => {
                 headerPlaceholder.innerHTML = html;
@@ -24,21 +24,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 return checkAuthStatus(); // Return promise to chain
             })
             .then(() => {
-                 // Initial Page JS Execution (Run directly since script is already loaded)
-                 const initialPath = window.location.pathname.split('/').pop() || 'index.html';
-                 console.log(`Initial page path: ${initialPath}`);
-                 const initializerName = pageInitializerNames[initialPath];
-                 if (initializerName && typeof window[initializerName] === 'function') {
-                     console.log(`Running initializer for initial load: ${initialPath}`);
-                     try {
-                        window[initializerName]();
-                     } catch (initError) {
-                         console.error(`Error running initializer for ${initialPath}:`, initError);
+                 // Initial Page JS Execution (Run directly since script is already loaded, but use setTimeout for safety)
+                 setTimeout(() => {
+                     const fullPath = window.location.pathname;
+                     const initialPageName = fullPath.split('/').pop() || 'index.html';
+                     console.log(`Initial page path: ${fullPath}`);
+
+                     let initializerName = null;
+                     if (fullPath.includes('/facilities/')) {
+                         initializerName = 'initFacilityDetailPage'; // Use the detail page initializer
+                         console.log(`Initial load is facility page, using initializer: ${initializerName}`);
+                     } else {
+                         initializerName = pageInitializerNames[initialPageName]; // Look up in map for main pages
                      }
-                 } else {
-                     console.log(`No initializer function found in window scope for initial load: ${initialPath} (Expected: ${initializerName})`);
-                 }
-                 // Initialize Router AFTER everything else
+
+                     if (initializerName && typeof window[initializerName] === 'function') {
+                         console.log(`Running initializer for initial load: ${initialPageName}`);
+                         try {
+                            window[initializerName]();
+                         } catch (initError) {
+                             console.error(`Error running initializer for ${initialPageName}:`, initError);
+                         }
+                     } else {
+                         console.log(`No initializer function found in window scope for initial load: ${initialPageName} (Expected: ${initializerName})`);
+                     }
+                 }, 0); // Delay execution slightly
+
+                 // Initialize Router AFTER everything else (Router init doesn't need delay)
                  initializeRouter();
                  // Set Initial Subtitle
                  const pageSubtitleElement = document.getElementById('page-subtitle-main');
@@ -105,9 +117,12 @@ async function loadPageContent(url, pushState = true) {
     mainContentElement.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
     try {
-        const response = await fetch(url);
+        // Ensure the fetch URL is absolute from the root
+        const absoluteUrl = new URL(url, window.location.origin).pathname;
+        console.log(`Fetching absolute URL: ${absoluteUrl}`); // Debug log
+        const response = await fetch(absoluteUrl);
         if (!response.ok) {
-            throw new Error(response.status === 404 ? `Page not found (404) for ${url}` : `HTTP error! status: ${response.status} for ${url}`);
+            throw new Error(response.status === 404 ? `Page not found (404) for ${absoluteUrl}` : `HTTP error! status: ${response.status} for ${absoluteUrl}`);
         }
         const html = await response.text();
         const parser = new DOMParser();
@@ -124,11 +139,11 @@ async function loadPageContent(url, pushState = true) {
             // --- Update Core DOM ---
             mainContentElement.innerHTML = newMainContent.innerHTML;
             document.title = newTitle;
-            if (pushState && window.location.pathname !== url && window.location.href !== url) {
-                history.pushState({ path: url }, newTitle, url);
-                console.log("Pushed state:", url);
+            if (pushState && window.location.pathname !== absoluteUrl) { // Check against absoluteUrl
+                history.pushState({ path: absoluteUrl }, newTitle, absoluteUrl); // Use absoluteUrl
+                console.log("Pushed state:", absoluteUrl);
             }
-            setActiveNavLink();
+            setActiveNavLink(); // This should now work correctly with the updated URL
             const newPageSubtitleElement = doc.getElementById('page-subtitle-main');
             const headerSubtitleElement = document.getElementById('page-subtitle');
             if (headerSubtitleElement) {
@@ -146,15 +161,23 @@ async function loadPageContent(url, pushState = true) {
 
             // Define the function to run the initializer *after* script loads
             const runInitializer = () => {
-                if (initializerName && typeof window[initializerName] === 'function') {
-                    console.log(`Running initializer: ${initializerName}`);
+                // Determine the correct initializer name based on URL path
+                let finalInitializerName = initializerName; // Start with the name from the map
+                if (url.includes('/facilities/')) {
+                    finalInitializerName = 'initFacilityDetailPage'; // Override for facility detail pages
+                    console.log(`URL indicates facility page, using initializer: ${finalInitializerName}`);
+                }
+
+                // Now check and run using the potentially overridden name
+                if (finalInitializerName && typeof window[finalInitializerName] === 'function') {
+                    console.log(`Running initializer: ${finalInitializerName}`);
                     try {
-                        window[initializerName]();
+                        window[finalInitializerName]();
                     } catch (initError) {
-                        console.error(`Error running initializer ${initializerName}:`, initError);
+                        console.error(`Error running initializer ${finalInitializerName}:`, initError);
                     }
                 } else {
-                    console.log(`Initializer ${initializerName || 'none specified'} not found or not a function.`);
+                    console.log(`Initializer ${finalInitializerName || 'none specified'} not found or not a function.`);
                 }
             };
 
@@ -163,9 +186,11 @@ async function loadPageContent(url, pushState = true) {
                 console.log(`Found page script: ${pageScriptSrc}. Loading...`);
                 const newScript = document.createElement('script');
                 newScript.id = 'page-specific-script'; // ID to find and remove later
-                newScript.src = pageScriptSrc;
+                // Ensure the script src is absolute from the root
+                newScript.src = pageScriptSrc.startsWith('/') ? pageScriptSrc : `/${pageScriptSrc}`;
+                console.log(`Setting script src to: ${newScript.src}`); // Debug log
                 newScript.onload = () => {
-                    console.log(`Script ${pageScriptSrc} loaded.`);
+                    console.log(`Script ${newScript.src} loaded.`);
                     runInitializer(); // Run initializer AFTER script loads
                 };
                 newScript.onerror = () => {

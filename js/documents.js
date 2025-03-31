@@ -1,27 +1,27 @@
 // js/documents.js - Logic for the Manage Documents page
 
 // State variables (global within this module's scope)
-let currentSelectedFacilityId = null;
-let currentSelectedFacilityData = null;
-let allFacilitiesData = null; // Cache for 'ALL' view
+var currentSelectedFacilityId = null;
+var currentSelectedFacilityData = null;
+var allFacilitiesData = null; // Cache for 'ALL' view
 
 // DOM Element references (will be assigned in init)
-let facilitySelect = null;
-let documentManagementSection = null;
-let selectedFacilityNameElement = null;
-let documentUploadInput = null;
-let uploadDocumentButton = null;
-let uploadStatusMessage = null;
-let linkUrlInput = null;
-let linkDescriptionInput = null;
-let addLinkButton = null;
-let addLinkStatusMessage = null;
-let documentList = null;
-let noDocumentsMessage = null;
-let uploadFormElements = null;
-let addLinkFormElements = null;
-let errorMessageDiv = null;
-let successMessageDiv = null;
+var facilitySelect = null;
+var documentManagementSection = null;
+var selectedFacilityNameElement = null;
+var documentUploadInput = null;
+var uploadDocumentButton = null;
+var uploadStatusMessage = null;
+var linkUrlInput = null;
+var linkDescriptionInput = null;
+var addLinkButton = null;
+var addLinkStatusMessage = null;
+var documentList = null;
+var noDocumentsMessage = null;
+var uploadFormElements = null;
+var addLinkFormElements = null;
+var errorMessageDiv = null;
+var successMessageDiv = null;
 
 // NEW: Initialization function called by router
 window.initDocumentsPage = function() {

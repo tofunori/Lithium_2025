@@ -325,7 +325,7 @@ body {
     background-size: cover;
     background-position: center;
     color: white; /* Keep text white */
-    padding: 50px 25px;
+    padding: 25px 25px; /* Reduced vertical padding */
     border-radius: var(--card-border-radius);
     position: relative;
     margin-bottom: 25px;
