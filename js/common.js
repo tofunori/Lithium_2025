@@ -315,62 +315,66 @@ function initializeThemeSwitcher() {
     }
 }
 
-async function checkAuthStatus() {
+// Updated checkAuthStatus for JWT
+function checkAuthStatus() {
     const authStatusElement = document.getElementById('authStatus');
     if (!authStatusElement) {
          console.warn("Auth status element not found.");
-         return; // Return a resolved promise
+         return;
     }
-    try {
-        const response = await fetch('/api/session');
-        if (!response.ok) {
-             throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const sessionData = await response.json();
-        if (sessionData.loggedIn && sessionData.user) {
-            authStatusElement.innerHTML = `
-                <span>Welcome, ${sessionData.user.username}!</span>
-                <a href="new-facility.html" class="btn btn-sm btn-success ms-2"><i class="fas fa-plus"></i> Add Facility</a>
-                <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
-            `;
-            const logoutLink = document.getElementById('logoutLink');
-             if (logoutLink) {
-                 if (!logoutLink.hasAttribute('data-listener-added')) {
-                    logoutLink.addEventListener('click', handleLogout);
-                    logoutLink.setAttribute('data-listener-added', 'true');
-                 }
+
+    const token = localStorage.getItem('authToken');
+
+    if (token) {
+        // Basic check: If token exists, assume logged in.
+        // For more security, you could decode the token here and check expiry,
+        // or make a quick API call to a '/api/verify-token' endpoint.
+        // For now, just showing UI based on token presence.
+        // You might want to decode the token to display the username if it's in the payload
+        // const decoded = jwt_decode(token); // Requires a jwt-decode library
+        // const username = decoded.username || 'Admin';
+        const username = 'Admin'; // Placeholder username
+
+        authStatusElement.innerHTML = `
+            <span>Welcome, ${username}!</span>
+            <a href="new-facility.html" class="btn btn-sm btn-success ms-2"><i class="fas fa-plus"></i> Add Facility</a>
+            <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+        `;
+        const logoutLink = document.getElementById('logoutLink');
+         if (logoutLink) {
+             // Ensure only one listener is added
+             if (!logoutLink.hasAttribute('data-listener-added')) {
+                logoutLink.addEventListener('click', handleLogout);
+                logoutLink.setAttribute('data-listener-added', 'true');
              }
-        } else {
-            authStatusElement.innerHTML = `
-                <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
-            `;
-        }
-    } catch (error) {
-        console.error('Error checking auth status:', error);
-        authStatusElement.innerHTML = '<span class="text-danger">Session check failed</span>';
+         }
+         console.log("User is logged in (JWT token found).");
+    } else {
+        // No token found, show login button
+        authStatusElement.innerHTML = `
+            <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
+        `;
+        console.log("User is logged out (No JWT token found).");
     }
 }
 
-async function handleLogout(event) {
+// Updated handleLogout for JWT
+function handleLogout(event) {
     event.preventDefault();
     console.log("Logout clicked");
-    try {
-        const response = await fetch('/api/logout');
-         if (!response.ok) {
-             throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
-        if (result.success) {
-            loadPageContent('index.html');
-            const authStatusElement = document.getElementById('authStatus');
-            if(authStatusElement) {
-                 authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
-            }
-        } else {
-            alert('Logout failed. Please try again.');
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-        alert('An error occurred during logout.');
+
+    // Remove token from localStorage
+    localStorage.removeItem('authToken');
+    console.log("Auth token removed from localStorage.");
+
+    // Update UI immediately
+    const authStatusElement = document.getElementById('authStatus');
+    if (authStatusElement) {
+        authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
     }
+
+    // Redirect to index page (or login page)
+    // Use loadPageContent to maintain SPA behavior if desired, or simple redirect
+    // window.location.href = 'login.html';
+    loadPageContent('index.html'); // Reload index page content
 }

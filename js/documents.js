@@ -289,6 +289,48 @@ function showLoadingIndicator(isLoading) {
 }
 
 
+// Helper function to add Auth header to fetch requests
+async function fetchWithAuth(url, options = {}) {
+    const token = localStorage.getItem('authToken');
+    const headers = {
+        ...options.headers, // Keep existing headers
+        'Content-Type': options.headers?.['Content-Type'] || 'application/json', // Default Content-Type if not specified
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    } else {
+        console.warn(`[Auth] No token found for request to ${url}. Request might fail if endpoint is protected.`);
+        // Optionally redirect to login if no token is ever found for protected routes
+        // window.location.href = '/login.html'; 
+        // throw new Error("Unauthorized: No token found."); // Or throw error
+    }
+
+    // Merge constructed headers back into options
+    const fetchOptions = {
+        ...options,
+        headers: headers,
+    };
+
+    // Perform the fetch call
+    const response = await fetch(url, fetchOptions);
+
+    // Centralized handling for 401/403 errors (Unauthorized/Forbidden)
+    if (response.status === 401 || response.status === 403) {
+        console.error(`[Auth] Received ${response.status} for ${url}. Token might be invalid or expired.`);
+        // Clear potentially invalid token and redirect to login
+        localStorage.removeItem('authToken'); 
+        showError("Authentication failed or expired. Please log in again."); // Show message
+        // Consider delaying redirect slightly to let user see message
+        setTimeout(() => { window.location.href = '/login.html'; }, 2000); 
+        // Throw an error to stop further processing in the calling function
+        throw new Error(`Authentication required (Status: ${response.status})`); 
+    }
+
+    return response; // Return the original response object
+}
+
+
 // Fetches items for a given folderId and triggers rendering
 async function fetchAndRenderFolderContents(folderId) {
     console.log(`Fetching contents for folder: ${folderId}`);
@@ -301,7 +343,7 @@ async function fetchAndRenderFolderContents(folderId) {
     showError(''); // Clear previous errors
 
     try {
-        const response = await fetch(`/api/doc_items?parentId=${encodeURIComponent(folderId)}`);
+        const response = await fetchWithAuth(`/api/doc_items?parentId=${encodeURIComponent(folderId)}`); // Use fetchWithAuth
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Failed to fetch folder contents (Status: ${response.status})`);
@@ -357,7 +399,7 @@ async function renderBreadcrumbs(folderId) {
         while (currentId && currentId !== 'root' && safetyCounter < 20) {
             safetyCounter++;
             // Fetch details for the current item ID
-            const response = await fetch(`/api/doc_items/${currentId}`); // Use new endpoint
+            const response = await fetchWithAuth(`/api/doc_items/${currentId}`); // Use fetchWithAuth
             if (!response.ok) {
                 console.error(`Error fetching breadcrumb item ${currentId}: ${response.statusText}`);
                 throw new Error(`Failed to fetch path item ${currentId}`);
@@ -785,7 +827,7 @@ async function handleFileClick(fileId) {
 
     try {
         // Use the new API endpoint for doc_items
-        const response = await fetch(`/api/doc_items/${fileId}/download-url`);
+        const response = await fetchWithAuth(`/api/doc_items/${fileId}/download-url`); // Use fetchWithAuth
         const result = await response.json();
         if (response.ok && result.url) {
             showSuccess(''); // Clear loading message
@@ -818,7 +860,7 @@ async function fetchAndRenderTreeLevel(folderId, targetUlElement) {
      targetUlElement.innerHTML = '<li class="text-muted small ps-1">Loading...</li>'; // Show loading inside UL
 
      try {
-        const response = await fetch(`/api/doc_items?parentId=${encodeURIComponent(folderId)}`);
+        const response = await fetchWithAuth(`/api/doc_items?parentId=${encodeURIComponent(folderId)}`); // Use fetchWithAuth
         if (!response.ok) {
             throw new Error(`Failed to fetch children: ${response.statusText}`);
         }
@@ -1466,7 +1508,7 @@ async function handleDrop(event) {
     showSuccess(`Moving item...`); // Provide user feedback
     showError('');
     try {
-        const response = await fetch(`/api/doc_items/${droppedItemId}/move`, {
+        const response = await fetchWithAuth(`/api/doc_items/${droppedItemId}/move`, { // Use fetchWithAuth
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',

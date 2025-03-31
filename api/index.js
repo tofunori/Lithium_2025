@@ -1,9 +1,8 @@
 const express = require('express');
 const fs = require('fs').promises; // Still needed for initial read in migration script, maybe remove later?
 const path = require('path');
-const session = require('express-session'); // Import express-session
 const admin = require('firebase-admin'); // Firebase Admin SDK
-const FirestoreStore = require('connect-firestore')(session); // Use connect-firestore again
+const jwt = require('jsonwebtoken'); // Import JWT library
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
 
@@ -75,34 +74,31 @@ const upload = multer({
 // --- Core Middleware ---
 app.use(express.json()); // Parse JSON bodies
 app.use(express.static(path.join(__dirname, '..'))); // Serve static files from root
-// Configure Firestore session store
-app.use(session({
-    store: new FirestoreStore({
-        dataset: db, // Use the initialized Firestore instance
-        kind: 'express-sessions' // Collection name in Firestore
-    }),
-    secret: process.env.SESSION_SECRET || 'your-very-secret-key-CHANGE-ME', // Use env var or a strong secret
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-        httpOnly: true, // Prevent client-side JS access
-        maxAge: 1000 * 60 * 60 * 24 // Session duration (e.g., 1 day)
-    }
-}));
 // --- End Core Middleware ---
 
 
 // --- Authentication ---
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-very-strong-jwt-secret-key-CHANGE-ME-IN-ENV'; // Use a strong secret, ideally from env vars
 
 function isAuthenticated(req, res, next) {
-    if (req.session.user) {
-        return next();
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1]; // Extract token after "Bearer "
+
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) {
+                console.warn('JWT Verification Failed:', err.message);
+                return res.status(403).json({ message: 'Forbidden: Invalid or expired token.' }); // Forbidden if token is invalid/expired
+            }
+            req.user = user; // Attach decoded user payload to request object
+            next(); // Proceed to the protected route
+        });
+    } else {
+        res.status(401).json({ message: 'Unauthorized: No token provided.' }); // Unauthorized if no token
     }
-    // Return 401 if not authenticated
-    res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
 }
 // --- End Authentication ---
 
@@ -113,34 +109,19 @@ function isAuthenticated(req, res, next) {
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        req.session.user = { username: ADMIN_USERNAME };
-        console.log('Login successful for user:', username);
-        res.json({ success: true, message: 'Login successful' });
+        // Generate JWT
+        const userPayload = { username: ADMIN_USERNAME }; // Include necessary user info in payload
+        const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1d' }); // Token expires in 1 day
+
+        console.log('Login successful, JWT generated for user:', username);
+        res.json({ success: true, message: 'Login successful', token: token }); // Send token to client
     } else {
         console.log('Login failed for user:', username);
         res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 });
 
-app.get('/api/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) {
-            console.error('Error destroying session:', err);
-            return res.status(500).json({ success: false, message: 'Logout failed' });
-        }
-        res.clearCookie('connect.sid');
-        console.log('User logged out');
-        res.json({ success: true, message: 'Logged out successfully' });
-    });
-});
-
-app.get('/api/session', (req, res) => {
-    if (req.session.user) {
-        res.json({ loggedIn: true, user: req.session.user });
-    } else {
-        res.json({ loggedIn: false });
-    }
-});
+// Removed /api/logout and /api/session routes as they are not needed with JWT
 
 // Facility Routes
 app.get('/api/facilities', async (req, res) => {

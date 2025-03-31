@@ -84,8 +84,16 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    // Login successful, redirect to dashboard
-                    window.location.href = 'index.html';
+                    // Login successful
+                    if (result.token) {
+                        localStorage.setItem('authToken', result.token); // Store the token
+                        console.log('Auth token stored in localStorage.');
+                        window.location.href = 'index.html'; // Redirect to dashboard
+                    } else {
+                        // Handle case where login succeeded but no token was sent (should not happen with JWT backend)
+                        errorMessageDiv.textContent = 'Login successful, but no authentication token received.';
+                        errorMessageDiv.classList.remove('d-none');
+                    }
                 } else {
                     // Login failed, show error message
                     errorMessageDiv.textContent = result.message || 'Login failed. Please check your credentials.';
