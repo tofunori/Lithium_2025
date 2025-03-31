@@ -3,6 +3,8 @@
 // --- State Variables ---
 var currentFolderId = null; // ID of the folder currently being viewed ('root' or doc_item ID)
 // Removed: currentSelectedFacilityId, currentFacilityName, currentFilesystemData, isAllFacilitiesMode, allFacilitiesData
+var backHistory = []; // Array to store folder IDs for back navigation
+var forwardHistory = []; // Array to store folder IDs for forward navigation
 
 // --- DOM Element References ---
 // Will be assigned in initDocumentsPage
@@ -44,6 +46,8 @@ window.initDocumentsPage = async function() { // Make the main function async
     folderTreeViewContainer = document.getElementById('folderTreeViewContainer');
     folderTreeView = document.getElementById('folderTreeView');
     // --- End Query DOM Elements ---
+var folderNavBackButton = null;
+var folderNavForwardButton = null;
 
     // Check if essential elements exist
     // Removed: !facilitySelect
@@ -67,6 +71,8 @@ window.initDocumentsPage = async function() { // Make the main function async
     breadcrumbNav.style.display = 'none'; // Hide breadcrumbs initially
     showError(''); showSuccess(''); // Clear messages
     // --- End Reset State and UI ---
+    folderNavBackButton = document.getElementById('folderNavBackButton');
+    folderNavForwardButton = document.getElementById('folderNavForwardButton');
 
     // Remove title related to facility selection
     if(selectedFacilityNameElement) selectedFacilityNameElement.textContent = 'Documents'; // Set a generic title
@@ -77,6 +83,10 @@ window.initDocumentsPage = async function() { // Make the main function async
     // Initial Load - Fetch root contents and render tree/breadcrumbs
     console.log("Performing initial fetch for root folder and tree...");
     try {
+    if (!folderNavBackButton || !folderNavForwardButton) {
+        console.warn("Folder navigation buttons not found. Back/Forward will not work.");
+        // Don't abort initialization, just disable the feature
+    }
         // Use Promise.all to run fetches concurrently, await completion
         await Promise.all([
             fetchAndRenderFolderContents(currentFolderId), // Fetch and render root ('root') content
@@ -95,6 +105,9 @@ window.initDocumentsPage = async function() { // Make the main function async
     // Use Promise.all to run fetches concurrently, await completion
     // Make initDocumentsPage async
     window.initDocumentsPage = async function() { // Make the function async
+    backHistory = []; // Reset history
+    forwardHistory = [];
+    updateNavButtonsState(); // Initial state (disabled)
         // ... (rest of the function setup code remains the same) ...
 
         // Initial Load - Fetch root contents
@@ -112,6 +125,91 @@ window.initDocumentsPage = async function() { // Make the main function async
 
 } // End of async initDocumentsPage function
 
+
+// --- Navigation Button State Update ---
+
+function updateNavButtonsState() {
+    if (folderNavBackButton) {
+        folderNavBackButton.disabled = backHistory.length === 0;
+    }
+    if (folderNavForwardButton) {
+        folderNavForwardButton.disabled = forwardHistory.length === 0;
+    }
+    console.log(`[Nav History] Back: ${backHistory.length}, Forward: ${forwardHistory.length}`);
+}
+
+// --- End Navigation Button State Update ---
+
+
+// --- Central Navigation Function ---
+
+// Central function to navigate to a folder and update history/UI
+async function navigateToFolder(folderId, updateHistory = true) {
+    console.log(`Navigating to folder: ${folderId}, Update History: ${updateHistory}`);
+
+    if (!folderId || folderId === currentFolderId) {
+        console.warn(`Navigation skipped: Invalid folderId (${folderId}) or already in folder.`);
+        return;
+    }
+
+    const previousFolderId = currentFolderId;
+
+    // Update history ONLY if triggered by direct user action (not back/forward buttons)
+    if (updateHistory) {
+        backHistory.push(previousFolderId);
+        forwardHistory = []; // Clear forward history on new navigation
+        console.log(`[Nav History] Pushed ${previousFolderId} to back stack.`);
+    }
+
+    // Update the current folder state
+    currentFolderId = folderId;
+
+    // Use Promise.all to run fetches concurrently
+    try {
+        showLoadingIndicator(true); // Show loading indicator
+        await Promise.all([
+            fetchAndRenderFolderContents(currentFolderId), // Fetch and render contents
+            renderBreadcrumbs(currentFolderId), // Render breadcrumbs
+            renderTreeView() // Re-render tree to update highlighting
+        ]);
+        updateNavButtonsState(); // Update button states after navigation
+        console.log(`Navigation and rendering for folder ${folderId} complete.`);
+    } catch (error) {
+        console.error(`Error during navigation to ${folderId}:`, error);
+        showError(`Failed to load folder ${folderId}: ${error.message}`);
+        // Optionally, attempt to revert state if navigation fails?
+        // currentFolderId = previousFolderId; // Revert current folder ID
+        // updateNavButtonsState();
+    } finally {
+        showLoadingIndicator(false); // Hide loading indicator
+    }
+}
+
+// --- End Central Navigation Function ---
+
+
+// --- Navigation History Handlers ---
+
+async function handleFolderNavBack() {
+    if (backHistory.length > 0) {
+        const previousFolderId = backHistory.pop();
+        forwardHistory.push(currentFolderId); // Add current to forward history
+        console.log(`[Nav History] Back clicked. Popped ${previousFolderId}. Pushed ${currentFolderId} to forward.`);
+        await navigateToFolder(previousFolderId, false); // Navigate without updating history stacks further
+    }
+}
+
+async function handleFolderNavForward() {
+    if (forwardHistory.length > 0) {
+        const nextFolderId = forwardHistory.pop();
+        backHistory.push(currentFolderId); // Add current to back history
+        console.log(`[Nav History] Forward clicked. Popped ${nextFolderId}. Pushed ${currentFolderId} to back.`);
+        await navigateToFolder(nextFolderId, false); // Navigate without updating history stacks further
+    }
+}
+
+// --- End Navigation History Handlers ---
+
 // Function to setup event listeners, preventing duplicates
 function setupDocumentsEventListeners() {
     console.log("Setting up file explorer event listeners...");
@@ -121,6 +219,10 @@ function setupDocumentsEventListeners() {
     // Removed: facilitySelect listener
     breadcrumbNav?.removeEventListener('click', handleBreadcrumbClick);
     fileExplorerView?.removeEventListener('click', handleItemClick);
+
+// --- Navigation History --- 
+// Removed updateNavButtonsState function from here. Will insert earlier.
+
     newFolderButton?.removeEventListener('click', handleNewFolderClick);
     uploadFileButton?.removeEventListener('click', handleUploadFileClick);
     addLinkButton?.removeEventListener('click', handleAddLinkClick);
@@ -137,6 +239,10 @@ function setupDocumentsEventListeners() {
     fileExplorerView?.addEventListener('dragenter', handleDragEnter);
     fileExplorerView?.addEventListener('dragover', handleDragOver);
     fileExplorerView?.addEventListener('dragleave', handleDragLeave);
+
+    // Folder Navigation Buttons
+    folderNavBackButton?.addEventListener('click', handleFolderNavBack);
+    folderNavForwardButton?.addEventListener('click', handleFolderNavForward);
     fileExplorerView?.addEventListener('drop', handleDrop);
 
     folderTreeView?.addEventListener('dragstart', handleDragStart); // Listen on tree too
@@ -366,13 +472,33 @@ function renderFolderContents(itemsArray) { // Changed parameter
         if (item.type === 'folder') {
             iconClass = 'fa-folder text-warning'; // Folder icon
             itemLink = '#'; // Folders handled by click listener on name
-            dateContent = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-';
+            // Check if createdAt exists and is the serialized Firestore Timestamp object
+            if (item.createdAt && typeof item.createdAt === 'object' && item.createdAt._seconds !== undefined) {
+                 // Convert from seconds to milliseconds for JS Date and format with time
+                dateContent = new Date(item.createdAt._seconds * 1000).toLocaleString(); // Use toLocaleString
+            } else if (item.createdAt) {
+                 // Attempt to parse if it's some other format (e.g., ISO string)
+                 const parsedDate = new Date(item.createdAt);
+                 dateContent = !isNaN(parsedDate) ? parsedDate.toLocaleString() : '-'; // Use toLocaleString
+            } else {
+                 dateContent = '-'; // Fallback if createdAt is missing
+            }
             sizeContent = '-';
              row.classList.add('folder-row'); // Add class for styling/event handling
         } else if (item.type === 'file') {
             iconClass = 'fa-file-alt text-secondary'; // File icon
             itemLink = '#'; // Files handled by click listener on name
-            dateContent = item.uploadedAt ? new Date(item.uploadedAt).toLocaleDateString() : '-';
+            // Use createdAt for files as well, as uploadedAt is not being set in the backend
+            if (item.createdAt && typeof item.createdAt === 'object' && item.createdAt._seconds !== undefined) {
+                 // Convert from seconds to milliseconds for JS Date and format with time
+                dateContent = new Date(item.createdAt._seconds * 1000).toLocaleString(); // Use toLocaleString
+            } else if (item.createdAt) {
+                 // Attempt to parse if it's some other format (e.g., ISO string)
+                 const parsedDate = new Date(item.createdAt);
+                 dateContent = !isNaN(parsedDate) ? parsedDate.toLocaleString() : '-'; // Use toLocaleString
+            } else {
+                 dateContent = '-'; // Fallback if createdAt is missing
+            }
             sizeContent = item.size ? `${(item.size / 1024).toFixed(1)} KB` : '-'; // Format size
              row.classList.add('file-row');
         } else if (item.type === 'link') {
@@ -449,51 +575,74 @@ function buildTreeLevelHtml(itemsArray) {
         if (a.type !== 'folder' && b.type === 'folder') return 1;
         return a.name.localeCompare(b.name); // Fallback sort by name
     });
-
     sortedItems.forEach(item => {
-        // Only render folders in the tree
-        if (item.type !== 'folder') return;
+        if (item.type !== 'folder') return; // Only render folders in the tree
 
         const li = document.createElement('li');
-        li.className = 'tree-node';
-        li.draggable = true; // Make the tree node draggable
-        li.dataset.itemId = item.id; // Store ID for dragstart
-        li.dataset.itemType = 'folder'; // Mark as folder
+        li.className = 'tree-node'; // Keep class for styling consistency
+        li.dataset.itemId = item.id;
+        li.dataset.itemType = item.type;
 
         // Container for the clickable part (icon, name, toggle)
         const nodeContent = document.createElement('div');
-        nodeContent.className = 'd-flex align-items-center'; // Use flexbox
+        // Add some padding for non-folder items to align them visually with folder text
+        nodeContent.className = `d-flex align-items-center ${item.type !== 'folder' ? 'ps-4' : ''}`; // Increased padding slightly
 
-        // Expand/Collapse Toggle Icon (Chevron)
-        const toggleIcon = document.createElement('a'); // Make it clickable
-        toggleIcon.href = '#';
-        toggleIcon.className = 'expand-toggle me-1 text-muted'; // Class for event listener
-        toggleIcon.dataset.folderId = item.id; // Store folder ID for fetching children
-        toggleIcon.innerHTML = '<i class="fas fa-chevron-right fa-xs"></i>'; // Default: collapsed
-        nodeContent.appendChild(toggleIcon);
+        let itemHtml = '';
+        // isActive should check if the *current view* matches the folder, not the item itself
+        const isCurrentViewFolder = item.type === 'folder' && item.id === currentFolderId;
 
-        // Highlight the currently selected folder on the main link
-        const isActive = item.id === currentFolderId;
-        const link = document.createElement('a');
-        link.href = '#';
-        link.dataset.folderId = item.id; // ID for navigation
-        link.className = `tree-link flex-grow-1 p-1 rounded ${isActive ? 'active bg-primary text-white' : 'text-dark'}`; // flex-grow to take space
+        if (item.type === 'folder') {
+            li.draggable = true; // Only folders are draggable in the tree
 
-        // Determine folder icon based on parentId
-        const folderIconClass = (item.parentId === 'root') ? 'fa-home' : 'fa-folder';
-        const folderIconColor = isActive ? '' : 'text-warning';
-        link.innerHTML = `<i class="fas ${folderIconClass} fa-fw me-1 ${folderIconColor}"></i> ${item.name}`;
-        nodeContent.appendChild(link);
+            // Expand/Collapse Toggle Icon (Chevron)
+            const toggleIcon = document.createElement('a');
+            toggleIcon.href = '#';
+            toggleIcon.className = 'expand-toggle me-1 text-muted';
+            toggleIcon.dataset.folderId = item.id;
+            toggleIcon.innerHTML = '<i class="fas fa-chevron-right fa-xs"></i>';
+            nodeContent.appendChild(toggleIcon);
 
-        li.appendChild(nodeContent); // Add the content div to the list item
+            // Folder Link
+            const link = document.createElement('a');
+            link.href = '#';
+            link.dataset.folderId = item.id; // ID for navigation
+            link.className = `tree-link flex-grow-1 p-1 rounded ${isCurrentViewFolder ? 'active bg-primary text-white' : 'text-dark'}`;
+            const folderIconClass = (item.parentId === 'root') ? 'fa-home' : 'fa-folder';
+            const folderIconColor = isCurrentViewFolder ? '' : 'text-warning';
+            link.innerHTML = `<i class="fas ${folderIconClass} fa-fw me-1 ${folderIconColor}"></i> ${item.name}`;
+            nodeContent.appendChild(link);
 
-        // Placeholder UL for children, initially hidden
-        const childrenUl = document.createElement('ul');
-        childrenUl.className = 'list-unstyled ps-3 d-none'; // Indented and hidden
-        childrenUl.dataset.parentId = item.id; // Mark which folder these children belong to
-        li.appendChild(childrenUl);
+             // Placeholder UL for children, initially hidden
+            const childrenUl = document.createElement('ul');
+            childrenUl.className = 'list-unstyled ps-3 d-none'; // Indented and hidden
+            childrenUl.dataset.parentId = item.id;
+            li.appendChild(nodeContent); // Add content first
+            li.appendChild(childrenUl); // Then add children container
 
-        ul.appendChild(li);
+        } else {
+             // Non-folder items (Files, Links) - Not draggable, no toggle, not directly navigable via tree click
+             li.draggable = false; // Files/links not draggable in tree
+
+             let iconClass = 'fa-file-alt text-secondary'; // Default file icon
+             let itemTitle = item.name; // Tooltip title
+             if (item.type === 'link') {
+                 iconClass = 'fa-link text-info';
+                 itemTitle = `${item.name} (${item.url})`;
+             }
+
+             // Display item with icon and name (not a link for navigation)
+             const itemSpan = document.createElement('span');
+             // Add data-item-id for potential future actions (e.g., rename/delete from tree)
+             itemSpan.dataset.itemId = item.id;
+             itemSpan.className = 'tree-item flex-grow-1 p-1 text-muted small'; // Style as plain text, slightly smaller
+             itemSpan.title = itemTitle; // Show full name or URL on hover
+             itemSpan.innerHTML = `<i class="fas ${iconClass} fa-fw me-1"></i> ${item.name}`;
+             nodeContent.appendChild(itemSpan);
+             li.appendChild(nodeContent);
+        }
+
+        ul.appendChild(li); // Add the constructed list item to the list
     });
 
     return ul.children.length > 0 ? ul : null;
@@ -520,15 +669,51 @@ async function renderTreeView() { // Simplified signature
 
         folderTreeView.innerHTML = ''; // Clear loading message
 
-        const treeUl = buildTreeLevelHtml(rootItems); // Build HTML for the fetched root items
+        const treeUl = buildTreeLevelHtml(rootItems); // Build HTML UL containing top-level LIs
 
-        if (treeUl) {
+        if (treeUl && treeUl.children.length > 0) {
             // Adjust top-level padding if needed
             treeUl.classList.remove('ps-3');
             folderTreeView.appendChild(treeUl);
-            console.log("Initial tree view rendering complete (root level).");
+            console.log("Initial tree view rendering complete (root level nodes).");
+
+            // --- Auto-expand top-level folders ---
+            console.log("Auto-expanding top-level folders...");
+            const topLevelFolders = folderTreeView.querySelectorAll(':scope > ul > li.tree-node[data-item-type="folder"]');
+            const expandPromises = [];
+
+            topLevelFolders.forEach(li => {
+                const folderId = li.dataset.itemId;
+                const childrenUl = li.querySelector('ul[data-parent-id]');
+                const toggleIconElement = li.querySelector('.expand-toggle i');
+
+// Removed navigateToFolder function from here. Will insert earlier.
+
+                if (folderId && childrenUl && toggleIconElement) {
+                    console.log(`Auto-fetching children for top-level folder: ${folderId}`);
+                    expandPromises.push(
+                        fetchAndRenderTreeLevel(folderId, childrenUl).then(success => {
+                            if (success) {
+                                childrenUl.classList.remove('d-none'); // Show children
+                                toggleIconElement.classList.remove('fa-chevron-right');
+                                toggleIconElement.classList.add('fa-chevron-down'); // Change icon
+                                console.log(`Auto-expanded: ${folderId}`);
+                            } else {
+                                console.warn(`Failed to auto-fetch children for ${folderId}`);
+                                // Optionally leave the error message shown by fetchAndRenderTreeLevel
+                            }
+                        })
+                    );
+                }
+            });
+
+            // Wait for all auto-expansions to finish (optional, but good practice)
+            await Promise.all(expandPromises);
+            console.log("Finished auto-expanding top-level folders.");
+            // --- End Auto-expand ---
+
         } else {
-            folderTreeView.innerHTML = '<p class="text-muted small">No top-level folders found.</p>';
+            folderTreeView.innerHTML = '<p class="text-muted small">No top-level items found.</p>'; // Updated message
             console.log("No root items found to render in tree view.");
         }
 
@@ -578,29 +763,11 @@ function handleItemClick(event) {
     }
 }
 
-// Handles clicks on folders in tree view, breadcrumbs, or main content (if folders shown there)
-async function handleFolderClick(folderId) { // Made async
-    console.log("Navigating to folder:", folderId);
-
-    if (!folderId) {
-        console.warn("handleFolderClick called with invalid folderId");
-        return;
-    }
-
-    // Update the current folder state
-    currentFolderId = folderId;
-
-    // Use Promise.all to run fetches concurrently
-    await Promise.all([
-        fetchAndRenderFolderContents(currentFolderId), // Fetch and render contents
-        renderBreadcrumbs(currentFolderId), // Render breadcrumbs
-        renderTreeView() // Re-render tree to update highlighting
-                         // Note: Highlighting logic might need adjustment later
-    ]);
-    console.log(`Navigation and rendering for folder ${folderId} complete.`);
-
-    // Remove facility-specific title update
-    // if(selectedFacilityNameElement) { ... }
+// Handles clicks on folders in tree view, breadcrumbs, or main content
+// This now primarily acts as a wrapper to call navigateToFolder
+async function handleFolderClick(folderId) {
+     // Call the central navigation function, indicating history should be updated
+    await navigateToFolder(folderId, true);
 }
 
 async function handleFileClick(fileId) {
@@ -630,13 +797,14 @@ async function handleFileClick(fileId) {
     }
 }
 
-function handleBreadcrumbClick(event) {
+async function handleBreadcrumbClick(event) { // Make async
     const target = event.target.closest('a'); // Find the clicked anchor tag
     if (target && target.dataset.folderId) {
         event.preventDefault();
         const folderId = target.dataset.folderId;
         console.log("Breadcrumb clicked, navigating to folder:", folderId);
-        handleFolderClick(folderId); // Call simplified handler
+        // Call the central navigation function, indicating history should be updated
+        await navigateToFolder(folderId, true);
     }
 }
 
@@ -662,8 +830,11 @@ async function fetchAndRenderTreeLevel(folderId, targetUlElement) {
         } else {
             targetUlElement.innerHTML = '<li class="text-muted small ps-1">(Empty)</li>'; // Indicate empty folder
         }
+        return true; // Indicate success
      } catch (error) {
          console.error(`Error fetching tree level for ${folderId}:`, error);
+         targetUlElement.innerHTML = '<li class="text-danger small ps-1">Error loading</li>'; // Show error in target UL
+         return false; // Indicate failure
          targetUlElement.innerHTML = '<li class="text-danger small ps-1">Error loading</li>';
      }
 }
@@ -708,7 +879,8 @@ async function handleTreeViewClick(event) { // Made async
         event.preventDefault();
         const folderId = folderLink.dataset.folderId;
         console.log("Tree view folder link clicked:", folderId);
-        handleFolderClick(folderId); // Navigate
+        // Call the central navigation function, indicating history should be updated
+        await navigateToFolder(folderId, true);
     }
 }
 

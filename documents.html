@@ -43,6 +43,17 @@
                         <h4 id="selectedFacilityName">Files for: </h4>
                         <hr>
                         <!-- Breadcrumb Navigation -->
+                        <!-- Back/Forward Navigation -->
+                        <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Folder navigation">
+                            <button type="button" class="btn btn-outline-secondary" id="folderNavBackButton" title="Back" disabled>
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="folderNavForwardButton" title="Forward" disabled>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+
+
                         <nav aria-label="breadcrumb" id="breadcrumbNav" class="mb-3" style="display: none;">
                             <ol class="breadcrumb" id="breadcrumbList">
                                 <!-- Breadcrumbs will be populated by JS -->

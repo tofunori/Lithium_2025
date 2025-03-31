@@ -483,7 +483,14 @@ app.get('/api/doc_items', isAuthenticated, async (req, res) => {
         const snapshot = await query.get();
         const items = [];
         snapshot.forEach(doc => {
+            items.push(doc.data()); // Add item to the array
+        }); // Close snapshot.forEach
 
+        res.status(200).json(items); // Send the response after the loop
+    } catch (error) {
+        console.error('Error fetching doc_items:', error);
+        res.status(500).json({ message: 'Failed to fetch document items.' });
+    }
 
 // GET /api/doc_items/:id - Fetch a single document item by ID
 app.get('/api/doc_items/:id', isAuthenticated, async (req, res) => {
@@ -497,7 +504,6 @@ app.get('/api/doc_items/:id', isAuthenticated, async (req, res) => {
         if (!itemSnap.exists) {
             return res.status(404).json({ message: `Document item with ID ${itemId} not found.` });
         }
-
         res.status(200).json(itemSnap.data());
 
     } catch (error) {
@@ -506,16 +512,63 @@ app.get('/api/doc_items/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-            items.push(doc.data());
-        });
+// GET /api/doc_items/:id/download-url - Get a temporary signed URL for a file
+app.get('/api/doc_items/:id/download-url', isAuthenticated, async (req, res) => {
+    const itemId = req.params.id;
+    if (!itemId) return res.status(400).json({ message: 'Missing item ID.' });
 
-        res.status(200).json(items);
+    console.log(`[Download URL] Request for item ID: ${itemId}`);
+
+    try {
+        const itemRef = db.collection('doc_items').doc(itemId);
+        const itemSnap = await itemRef.get();
+
+        if (!itemSnap.exists) {
+            console.log(`[Download URL] Item ${itemId} not found in Firestore.`);
+            return res.status(404).json({ message: `Document item with ID ${itemId} not found.` });
+        }
+
+        const itemData = itemSnap.data();
+
+        // Validate it's a file and has a storage path
+        if (itemData.type !== 'file') {
+            console.log(`[Download URL] Item ${itemId} is not a file (type: ${itemData.type}).`);
+            return res.status(400).json({ message: 'Item is not a file.' });
+        }
+        if (!itemData.storagePath) {
+            console.error(`[Download URL] Missing storagePath for file item ${itemId}.`);
+            return res.status(500).json({ message: 'Internal error: File storage path is missing.' });
+        }
+
+        // Check if file exists in storage
+        const fileInStorage = bucket.file(itemData.storagePath);
+        const [exists] = await fileInStorage.exists();
+        if (!exists) {
+            console.warn(`[Download URL] File metadata exists for ${itemId}, but file not found in storage at: ${itemData.storagePath}`);
+            return res.status(404).json({ message: 'File not found in storage, metadata might be out of sync.' });
+        }
+
+        // Generate signed URL (expires in 15 minutes)
+        const options = {
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+        };
+        const [url] = await fileInStorage.getSignedUrl(options);
+
+        console.log(`[Download URL] Generated signed URL for item ${itemId} (Path: ${itemData.storagePath})`);
+        res.json({ url });
 
     } catch (error) {
-        console.error('Error fetching doc_items:', error);
-        res.status(500).json({ message: 'Failed to fetch document items.' });
+        console.error(`[Download URL] Error generating signed URL for item ${itemId}:`, error);
+        res.status(500).json({ message: 'Error generating download URL.' });
     }
 });
+
+// Removed duplicated block below
+});
+// Removing orphaned catch block and closing bracket below
+// Removing misplaced block from GET /api/doc_items
 
 
 
