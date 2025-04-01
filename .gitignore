@@ -37,3 +37,4 @@ coverage/
 .Trashes
 ehthumbs.db
 Thumbs.db
+.roo/mcp.json
