@@ -1318,11 +1318,12 @@ function handleUploadFileClick() {
                 size: storageResult.size
             };
 
-            const createResponse = await fetch('/api/doc_items', {
+            // Use fetchWithAuth to create the metadata item
+            const createResponse = await fetchWithAuth('/api/doc_items', {
                  method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
+                 // headers: { 'Content-Type': 'application/json' }, // fetchWithAuth handles headers
                  body: JSON.stringify(newItemData)
-                 // Auth handled by cookie/session
+                 // fetchWithAuth adds Auth header and correct Content-Type for JSON
             });
 
              if (!createResponse.ok) {
