@@ -1262,7 +1262,7 @@ function handleUploadFileClick() {
             } else {
                 // Fetch parent folder details to find facility tag
                 console.log(`Fetching parent folder (${currentFolderId}) details to find facility tag...`);
-                const parentInfoResponse = await fetch(`/api/doc_items/${currentFolderId}`);
+                const parentInfoResponse = await fetchWithAuth(`/api/doc_items/${currentFolderId}`); // Use fetchWithAuth
                 if (!parentInfoResponse.ok) {
                      throw new Error(`Could not fetch parent folder details (${parentInfoResponse.statusText})`);
                 }

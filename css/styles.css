@@ -151,7 +151,7 @@ body {
 
 /* Map Styles */
 .map-container {
-    height: 500px;
+    height: 70vh; /* Adjusted height to 70% of viewport height */
     border-radius: var(--card-border-radius);
     overflow: hidden;
     box-shadow: var(--subtle-shadow);
