@@ -432,6 +432,8 @@ async function fetchWithAuth(url, options = {}) {
         headers: headers,
     };
 
+    console.log('[fetchWithAuth] Options being sent:', JSON.stringify(fetchOptions, null, 2));
+
     // Perform the fetch call
     const response = await fetch(url, fetchOptions);
 
