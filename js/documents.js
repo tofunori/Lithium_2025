@@ -409,10 +409,12 @@ function showLoadingIndicator(isLoading) {
 // Helper function to add Auth header to fetch requests
 async function fetchWithAuth(url, options = {}) {
     const token = localStorage.getItem('authToken');
-    const headers = {
-        ...options.headers, // Keep existing headers
-        'Content-Type': options.headers?.['Content-Type'] || 'application/json', // Default Content-Type if not specified
-    };
+    const headers = { ...options.headers }; // Start with existing headers
+
+    // Only set default Content-Type if it's not FormData and not already set
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
         console.log('[fetchWithAuth] Token found in localStorage:', !!token);
@@ -1281,10 +1283,12 @@ function handleUploadFileClick() {
             // Step 2: Upload file to storage via the old (refactored) endpoint
             // Use the determined context (facility ID or '_uncategorized')
             console.log(`Uploading file to storage under context: ${facilityIdForStorage}`);
-            const storageResponse = await fetch(`/api/facilities/${facilityIdForStorage}/files`, {
+            // Use fetchWithAuth for the storage upload as well
+            const storageResponse = await fetchWithAuth(`/api/facilities/${facilityIdForStorage}/files`, {
                 method: 'POST',
                 body: formData
-                // Auth handled by cookie/session
+                // fetchWithAuth will add the Authorization header
+                // Content-Type will be set automatically by the browser for FormData
             });
 
             if (!storageResponse.ok) {
