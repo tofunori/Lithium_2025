@@ -5,6 +5,12 @@ var currentFolderId = null; // ID of the folder currently being viewed ('root' o
 // Removed: currentSelectedFacilityId, currentFacilityName, currentFilesystemData, isAllFacilitiesMode, allFacilitiesData
 var backHistory = []; // Array to store folder IDs for back navigation
 var forwardHistory = []; // Array to store folder IDs for forward navigation
+var currentFilterType = 'all'; // 'all', 'folder', 'file', 'link'
+// Date filter state removed
+var originalFolderItems = []; // Stores the full list from the API for the current folder
+ var sortBy = 'name'; // Default sort column ('name', 'modifiedAt', 'size', 'type')
+ var sortDirection = 'asc'; // 'asc' or 'desc'
+
 
 // --- DOM Element References ---
 // Will be assigned in initDocumentsPage
@@ -23,6 +29,8 @@ var errorMessageDiv = null;
 var successMessageDiv = null;
 var folderTreeViewContainer = null;
 var folderTreeView = null;
+var filterTypeSelect = null;
+// Date filter input references removed
 
 // --- Initialization ---
 // Called by router when the documents page is loaded
@@ -45,21 +53,26 @@ window.initDocumentsPage = async function() { // Make the main function async
     successMessageDiv = document.getElementById('successMessage');
     folderTreeViewContainer = document.getElementById('folderTreeViewContainer');
     folderTreeView = document.getElementById('folderTreeView');
+    filterTypeSelect = document.getElementById('filterTypeSelect');
+    // Date filter input references removed
     // --- End Query DOM Elements ---
 var folderNavBackButton = null;
 var folderNavForwardButton = null;
 
     // Check if essential elements exist
-    // Removed: !facilitySelect
-    if (!documentManagementSection || !fileExplorerView || !breadcrumbList || !newFolderButton || !folderTreeViewContainer || !folderTreeView) {
-        console.error("Essential elements for File Explorer page not found. Aborting initialization.");
+    // Removed: !facilitySelect // Removed date filter inputs check
+    if (!documentManagementSection || !fileExplorerView || !breadcrumbList || !newFolderButton || !folderTreeViewContainer || !folderTreeView || !filterTypeSelect) {
+        console.error("Essential elements (including type filter) for File Explorer page not found. Aborting initialization.");
         if (errorMessageDiv) showError("Error initializing page elements. Please refresh.");
-        return;
+        return; // Removed date filter inputs check
     }
 
     // --- Reset State and UI ---
     console.log("Resetting file explorer state and UI...");
     currentFolderId = 'root'; // Start at the root
+    currentFilterType = 'all'; // Reset type filter
+    // Removed date filter reset
+    originalFolderItems = [];
     // Removed resets for deleted state variables
     // Removed facilitySelect resets
     breadcrumbList.innerHTML = ''; // Clear breadcrumbs
@@ -70,6 +83,8 @@ var folderNavForwardButton = null;
     // Removed hiding documentManagementSection
     breadcrumbNav.style.display = 'none'; // Hide breadcrumbs initially
     showError(''); showSuccess(''); // Clear messages
+    if(filterTypeSelect) filterTypeSelect.value = 'all'; // Reset type filter UI
+    // Removed date filter UI reset
     // --- End Reset State and UI ---
     folderNavBackButton = document.getElementById('folderNavBackButton');
     folderNavForwardButton = document.getElementById('folderNavForwardButton');
@@ -210,6 +225,103 @@ async function handleFolderNavForward() {
 
 // --- End Navigation History Handlers ---
 
+// --- Sorting Handlers ---
+
+// Combined handler for clicks within the file explorer view
+function handleFileExplorerClick(event) {
+    const target = event.target;
+
+    // Check if the click was on a sortable header
+    const header = target.closest('.sortable-header');
+    if (header) {
+        const newSortBy = header.dataset.sort;
+        if (newSortBy) { // Ensure data-sort attribute exists
+            console.log(`Sort header clicked: ${newSortBy}`);
+            handleSortHeaderClick(newSortBy);
+        }
+        return; // Stop further processing if it was a header click
+    }
+
+    // If not a header click, proceed with original item click logic
+    // Find the relevant elements for item clicks (links, actions)
+    const itemLink = target.closest('a.item-link');
+    const actionLink = target.closest('a.dropdown-item');
+
+    if (itemLink) {
+        handleItemLinkClick(event, itemLink); // Delegate to specific handler
+    } else if (actionLink) {
+        handleActionLinkClick(event, actionLink); // Delegate to specific handler
+    }
+}
+
+// Extracted logic for handling clicks on item links (files/folders)
+function handleItemLinkClick(event, itemLink) {
+    const itemId = itemLink.dataset.itemId;
+    const itemType = itemLink.dataset.itemType;
+    console.log(`Item link clicked: ID=${itemId}, Type=${itemType}`);
+
+    if (itemType === 'folder') {
+        event.preventDefault(); // Prevent default only for folders
+        handleFolderClick(itemId);
+    } else if (itemType === 'file') {
+        event.preventDefault(); // Prevent default only for files
+        handleFileClick(itemId);
+    }
+    // External links will follow their href by default
+}
+
+// Extracted logic for handling clicks on action dropdown items
+function handleActionLinkClick(event, actionLink) {
+    event.preventDefault(); // Prevent default for action dropdown links
+    const itemId = actionLink.dataset.itemId;
+    console.log(`Action link clicked for item ID=${itemId}`);
+
+    if (actionLink.classList.contains('action-rename')) {
+        handleRenameClick(itemId);
+    } else if (actionLink.classList.contains('action-move')) {
+        handleMoveClick(itemId);
+    } else if (actionLink.classList.contains('action-delete')) {
+        handleDeleteClick(itemId);
+    }
+}
+
+
+function handleSortHeaderClick(newSortBy) {
+    if (sortBy === newSortBy) {
+        // Toggle direction if clicking the same column
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        // Change column, default to ascending
+        sortBy = newSortBy;
+        sortDirection = 'asc';
+    }
+    console.log(`New sort state: sortBy=${sortBy}, sortDirection=${sortDirection}`);
+    // Re-apply filters and sorting, then re-render
+    applyFiltersAndRender();
+}
+
+function updateSortIcons() {
+    const headers = fileExplorerView?.querySelectorAll('.sortable-header');
+    if (!headers) return;
+
+    headers.forEach(header => {
+        const iconSpan = header.querySelector('.sort-icon');
+        if (!iconSpan) return;
+
+        const columnKey = header.dataset.sort;
+        if (columnKey === sortBy) {
+            // Apply icon based on direction
+            iconSpan.innerHTML = sortDirection === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>';
+        } else {
+            // Clear icon for non-active columns (optional: show neutral icon)
+            iconSpan.innerHTML = ' <i class="fas fa-sort text-muted"></i>';
+        }
+    });
+}
+
+// --- End Sorting Handlers ---
+
+
 // Function to setup event listeners, preventing duplicates
 function setupDocumentsEventListeners() {
     console.log("Setting up file explorer event listeners...");
@@ -227,6 +339,8 @@ function setupDocumentsEventListeners() {
     uploadFileButton?.removeEventListener('click', handleUploadFileClick);
     addLinkButton?.removeEventListener('click', handleAddLinkClick);
     folderTreeView?.removeEventListener('click', handleTreeViewClick);
+    filterTypeSelect?.removeEventListener('change', handleFilterChange);
+    // Removed date filter listeners
 
     // Add new listeners
     // Removed: facilitySelect listener
@@ -251,9 +365,9 @@ function setupDocumentsEventListeners() {
     folderTreeView?.addEventListener('dragleave', handleDragLeave);
     folderTreeView?.addEventListener('drop', handleDrop);
     }
-     if (fileExplorerView) {
-        // Use event delegation for items within the view
-        fileExplorerView.addEventListener('click', handleItemClick);
+    if (fileExplorerView) {
+        // Use event delegation for items AND sortable headers within the view
+        fileExplorerView.addEventListener('click', handleFileExplorerClick); // Changed handler name
     }
     if (newFolderButton) {
         newFolderButton.addEventListener('click', handleNewFolderClick);
@@ -267,9 +381,12 @@ function setupDocumentsEventListeners() {
     if (folderTreeView) {
         folderTreeView.addEventListener('click', handleTreeViewClick);
     }
-}
-
-
+    // Add type filter listener
+    if (filterTypeSelect) {
+        filterTypeSelect.addEventListener('change', handleFilterChange);
+    }
+    // Removed date filter listeners
+} // Closing brace for setupDocumentsEventListeners
 // --- Data Fetching & Handling ---
 
 // Removed: populateFacilityDropdown function
@@ -354,8 +471,11 @@ async function fetchAndRenderFolderContents(folderId) {
         const itemsArray = await response.json();
         console.log(`Contents for ${folderId}:`, itemsArray);
 
-        // Render the fetched items
-        renderFolderContents(itemsArray);
+        // Store the original items
+        originalFolderItems = itemsArray;
+
+        // Apply filters and render
+        applyFiltersAndRender();
 
     } catch (error) {
         console.error(`Error fetching contents for folder ${folderId}:`, error);
@@ -458,8 +578,8 @@ async function renderBreadcrumbs(folderId) {
 }
 
 // Renders the items (files/folders/links) in the main content table
-function renderFolderContents(itemsArray) { // Changed parameter
-    console.log("Rendering folder contents:", itemsArray);
+function renderFolderContents(itemsToRender) { // Changed parameter name
+    console.log("Rendering folder contents with items:", itemsToRender);
 
     if (!fileExplorerView) {
         console.error("File explorer view element not found.");
@@ -469,16 +589,24 @@ function renderFolderContents(itemsArray) { // Changed parameter
     if(loadingMessage) loadingMessage.classList.add('d-none');
     if(emptyFolderMessage) emptyFolderMessage.classList.add('d-none');
 
-    // Check if the passed array is valid and has items
-    if (!itemsArray) {
-        console.warn("itemsArray is null or undefined for rendering folder contents.");
-        fileExplorerView.innerHTML = '<p class="text-danger p-3">Error loading folder items.</p>';
-        return;
+    // Check if the passed array is valid
+    if (!itemsToRender) {
+        console.warn("itemsToRender is null or undefined for rendering folder contents.");
+        fileExplorerView.innerHTML = '<p class="text-danger p-3">Error preparing items for display.</p>';
+        return; // Exit if no valid array provided
     }
-     if (itemsArray.length === 0) {
+    // Check if the array (potentially after filtering) is empty
+    if (itemsToRender.length === 0) {
+        if (currentFilterType !== 'all') { // Check only type filter
+            // If type filter is active, show a "no results matching filter" message
+            emptyFolderMessage.textContent = "No items match the current filter criteria.";
+        } else {
+            // Otherwise, show the standard empty folder message
+            emptyFolderMessage.textContent = "This folder is empty.";
+        }
         if(emptyFolderMessage) emptyFolderMessage.classList.remove('d-none');
-        fileExplorerView.appendChild(emptyFolderMessage);
-        return;
+        fileExplorerView.appendChild(emptyFolderMessage); // Append the potentially modified message
+        return; // Exit if no items to render
     }
 
     // --- Create Table Structure (Example) ---
@@ -487,17 +615,19 @@ function renderFolderContents(itemsArray) { // Changed parameter
     const thead = table.createTHead();
     const tbody = table.createTBody();
     const headerRow = thead.insertRow();
+    // Add data-sort attributes and sort icon spans to relevant headers
     headerRow.innerHTML = `
         <th scope="col" style="width: 40px;">Type</th>
-        <th scope="col">Name</th>
-        <th scope="col">Date Modified/Added</th>
+        <th scope="col" class="sortable-header" data-sort="name" style="cursor: pointer;">Name <span class="sort-icon"></span></th>
+        <th scope="col" class="sortable-header" data-sort="modifiedAt" style="cursor: pointer;">Date Modified/Added <span class="sort-icon"></span></th>
         <th scope="col">Size</th>
         <th scope="col" style="width: 100px;">Actions</th>
     `;
+    // Note: Added Size header without sorting for now, can be added later if needed.
 
     // --- Populate Table Rows ---
-    // Iterate directly over the passed itemsArray
-    itemsArray.forEach(item => {
+    // Iterate over the itemsToRender array
+    itemsToRender.forEach(item => {
         if (!item) {
             console.warn("Encountered null/undefined item in itemsArray.");
             return; // Skip invalid item
@@ -601,7 +731,82 @@ function renderFolderContents(itemsArray) { // Changed parameter
     });
 
     fileExplorerView.appendChild(table);
+
+    // Update sort icons after rendering table structure
+    updateSortIcons();
 }
+
+// --- Filtering Logic ---
+
+// Called when any filter input changes
+function handleFilterChange() {
+    console.log("Filter changed.");
+    // Update state variables from input values
+    currentFilterType = filterTypeSelect ? filterTypeSelect.value : 'all';
+    // Date parsing logic removed.
+    console.log(`Filter State Updated: Type=${currentFilterType}`); // Removed date state logging
+
+    // Re-apply filters and render the table
+    applyFiltersAndRender();
+}
+
+// Applies current filters and sorting to originalFolderItems and calls renderFolderContents
+function applyFiltersAndRender() {
+    console.log("Applying filters/sorting to original items:", originalFolderItems);
+    if (!originalFolderItems) {
+        console.warn("Original folder items not available for filtering.");
+        renderFolderContents([]); // Render empty state
+        return;
+    }
+
+    let filteredItems = originalFolderItems;
+
+    // 1. Filter by Type
+    if (currentFilterType !== 'all') {
+        filteredItems = filteredItems.filter(item => item.type === currentFilterType);
+        console.log("After Type Filter:", filteredItems);
+    }
+
+    // Date filtering logic removed based on user feedback.
+
+    // 2. Apply Sorting
+    if (sortBy && sortDirection) {
+        filteredItems.sort((a, b) => {
+            let valA = a[sortBy];
+            let valB = b[sortBy];
+
+            // Handle different data types for sorting
+            if (sortBy === 'modifiedAt') {
+                // Convert dates for comparison, handle nulls
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
+            } else if (sortBy === 'name' || sortBy === 'type') {
+                // Case-insensitive string comparison
+                valA = (valA || '').toString().toLowerCase();
+                valB = (valB || '').toString().toLowerCase();
+            } else if (sortBy === 'size') {
+                // Numerical comparison, handle nulls/undefined
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
+            }
+
+            let comparison = 0;
+            if (valA > valB) {
+                comparison = 1;
+            } else if (valA < valB) {
+                comparison = -1;
+            }
+
+            return sortDirection === 'desc' ? comparison * -1 : comparison;
+        });
+        console.log(`After Sorting by ${sortBy} ${sortDirection}:`, filteredItems);
+    }
+    // Render the filtered and sorted list
+    renderFolderContents(filteredItems);
+}
+
+// --- End Filtering Logic ---
+
 
 
 // Helper function to build HTML for a list of items (folders) in the tree
@@ -1347,7 +1552,7 @@ async function handleDeleteClick(itemId) { // Made async
     let itemName = itemId;
     let parentId = null;
     try {
-        const response = await fetch(`/api/doc_items/${itemId}`);
+        const response = await fetchWithAuth(`/api/doc_items/${itemId}`); // Use fetchWithAuth
         if (!response.ok) {
              // If item not found, maybe it was already deleted? Silently ignore or show specific message.
              if (response.status === 404) {
@@ -1387,9 +1592,9 @@ async function handleDeleteClick(itemId) { // Made async
     showError('');
 
     // Call the new DELETE endpoint for doc_items
-    fetch(`/api/doc_items/${itemId}`, {
+    fetchWithAuth(`/api/doc_items/${itemId}`, { // Use fetchWithAuth
         method: 'DELETE'
-        // Auth handled by cookie/session
+        // Headers handled by fetchWithAuth
     })
      .then(async response => {
         // Check for 200 OK or 204 No Content for successful deletion
@@ -1533,6 +1738,9 @@ async function handleDrop(event) {
         await fetchAndRenderFolderContents(currentFolderId);
         // 2. Refresh the entire tree view (simplest approach)
         await renderTreeView();
+// --- Sorting/Click Handlers Moved Before setupDocumentsEventListeners ---
+
+
         // 3. Optionally, refresh breadcrumbs if the current folder was moved (less common)
         // await renderBreadcrumbs(currentFolderId);
 
@@ -1543,6 +1751,43 @@ async function handleDrop(event) {
         draggedItemId = null; // Reset dragged item ID
     }
 }
+
+// --- Sorting Handlers ---
+
+function handleSortHeaderClick(newSortBy) {
+    if (sortBy === newSortBy) {
+        // Toggle direction if clicking the same column
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        // Change column, default to ascending
+        sortBy = newSortBy;
+        sortDirection = 'asc';
+    }
+    console.log(`New sort state: sortBy=${sortBy}, sortDirection=${sortDirection}`);
+    // Re-apply filters and sorting, then re-render
+    applyFiltersAndRender();
+}
+
+function updateSortIcons() {
+    const headers = fileExplorerView?.querySelectorAll('.sortable-header');
+    if (!headers) return;
+
+    headers.forEach(header => {
+        const iconSpan = header.querySelector('.sort-icon');
+        if (!iconSpan) return;
+
+        const columnKey = header.dataset.sort;
+        if (columnKey === sortBy) {
+            // Apply icon based on direction
+            iconSpan.innerHTML = sortDirection === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>';
+        } else {
+            // Clear icon for non-active columns
+            iconSpan.innerHTML = ' <i class="fas fa-sort text-muted"></i>'; // Optional: show neutral sort icon
+        }
+    });
+}
+
+// --- End Sorting Handlers ---
 
 
 

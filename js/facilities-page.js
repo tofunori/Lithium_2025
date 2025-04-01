@@ -15,6 +15,14 @@ window.initFacilitiesPage = function() {
     // Reset data cache in case it was loaded previously with different filters/state
     // facilitiesPageData = null; // Optional: uncomment to force reload every time
     loadFacilitiesPageData(); // Load data and initialize
+
+    // Check login status and show/hide Add Facility button specific to this page
+    const addFacilityBtn = document.getElementById('addFacilityBtnPage');
+    if (addFacilityBtn && localStorage.getItem('authToken')) {
+        addFacilityBtn.classList.remove('d-none');
+    } else if (addFacilityBtn) {
+        addFacilityBtn.classList.add('d-none'); // Ensure it's hidden if not logged in
+    }
 }
 
 async function loadFacilitiesPageData() {

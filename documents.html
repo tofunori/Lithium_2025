@@ -65,6 +65,23 @@
                         <div class="card mb-3">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <span>Current Folder Contents</span>
+                                <!-- Filter Controls -->
+                                <div class="row mb-2 g-2 align-items-center">
+                                    <div class="col-md-auto">
+                                        <label for="filterTypeSelect" class="col-form-label col-form-label-sm">Type:</label>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select form-select-sm" id="filterTypeSelect">
+                                            <option value="all" selected>All Types</option>
+                                            <option value="folder">Folder</option>
+                                            <option value="file">File</option>
+                                            <option value="link">Link</option>
+                                        </select>
+                                    </div>
+                                    <!-- Date range inputs removed based on feedback -->
+                                </div>
+                                <!-- Action Buttons -->
+
                                 <div class="btn-group" role="group" aria-label="File actions">
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="newFolderButton" title="New Folder"><i class="fas fa-folder-plus"></i> New Folder</button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" id="uploadFileButton" title="Upload File"><i class="fas fa-upload"></i> Upload File</button>

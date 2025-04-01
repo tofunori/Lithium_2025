@@ -335,9 +335,9 @@ function checkAuthStatus() {
         // const username = decoded.username || 'Admin';
         const username = 'Admin'; // Placeholder username
 
+        // Add Facility button removed from header entirely based on feedback
         authStatusElement.innerHTML = `
             <span>Welcome, ${username}!</span>
-            <a href="new-facility.html" class="nav-link btn btn-sm btn-success ms-2"><i class="fas fa-plus"></i> Add Facility</a>
             <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
         `;
         const logoutLink = document.getElementById('logoutLink');
