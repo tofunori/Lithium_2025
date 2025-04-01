@@ -37,7 +37,10 @@
 
          <div class="d-flex justify-content-between align-items-center mb-4">
              <h3 id="editPageTitle">Edit Facility Details</h3> <!-- Changed Title -->
-             <a href="#" id="cancelButton" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Cancel</a> <!-- Cancel button needs dynamic href -->
+             <div>
+                 <button type="button" id="deleteButton" class="btn btn-outline-danger me-2"><i class="fas fa-trash-alt"></i> Delete Facility</button> <!-- Added Delete Button -->
+                 <a href="#" id="cancelButton" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Cancel</a> <!-- Cancel button needs dynamic href -->
+             </div>
          </div>
 
         <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>

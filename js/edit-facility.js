@@ -72,6 +72,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (form) {
         form.addEventListener('submit', handleFormSubmit);
     }
+    // Add Delete Button Listener
+    const deleteButton = document.getElementById('deleteButton');
+    if (deleteButton) {
+        deleteButton.addEventListener('click', handleDeleteFacility);
+    }
 
     // 6. Setup Header Auth Status (REMOVED - Handled globally by common.js)
 });
@@ -236,6 +241,55 @@ async function handleFormSubmit(event) {
     } catch (error) {
         console.error('Error submitting facility update:', error);
         showError('An unexpected error occurred. Please try again.');
+    }
+}
+
+
+// Function to handle facility deletion
+async function handleDeleteFacility() {
+    if (!currentFacilityId || !currentFacilityData?.properties?.name) {
+        showError("Cannot delete facility: ID or name is missing.");
+        return;
+    }
+
+    const facilityName = currentFacilityData.properties.name;
+    const confirmation = window.confirm(`Are you sure you want to delete the facility "${facilityName}"? This action cannot be undone.`);
+
+    if (!confirmation) {
+        return; // User cancelled
+    }
+
+    showError(''); // Clear previous errors
+    showSuccess('Deleting facility...'); // Show progress
+
+    try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            throw new Error("Authentication token not found.");
+        }
+
+        const response = await fetch(`/api/facilities/${currentFacilityId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+
+        const result = await response.json(); // Expecting { success: true, message: '...' } or error
+
+        if (response.ok && result.success) {
+            showSuccess(`Facility "${facilityName}" deleted successfully! Redirecting...`);
+            // Redirect to the main facilities list page after deletion
+            setTimeout(() => {
+                window.location.href = 'facilities.html';
+            }, 2000);
+        } else {
+            throw new Error(result.message || `Error deleting facility (Status: ${response.status})`);
+        }
+    } catch (error) {
+        console.error('Error deleting facility:', error);
+        showSuccess(''); // Clear 'Deleting...' message
+        showError(`Failed to delete facility: ${error.message}`);
     }
 }
 

@@ -245,6 +245,33 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
     }
 });
 
+// DELETE /api/facilities/:id - Delete a facility
+app.delete('/api/facilities/:id', isAuthenticated, async (req, res) => {
+    const facilityId = req.params.id;
+    console.log(`Attempting to delete facility with ID: ${facilityId}`);
+
+    try {
+        const docRef = db.collection('facilities').doc(facilityId);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+            console.log(`Facility ${facilityId} not found for deletion.`);
+            return res.status(404).json({ success: false, message: `Facility with ID ${facilityId} not found.` });
+        }
+
+        // Delete the document from Firestore
+        await docRef.delete();
+
+        // TODO: Implement deletion of associated doc_items and storage files if needed
+        console.log(`Facility ${facilityId} deleted successfully from Firestore.`);
+        res.status(200).json({ success: true, message: `Facility ${facilityId} deleted successfully.` });
+
+    } catch (err) {
+        console.error(`Error deleting facility ${facilityId} from Firestore:`, err);
+        res.status(500).json({ success: false, message: `Error deleting facility ${facilityId}.` });
+    }
+});
+
 
 // --- Dynamic Facility Page Route ---
 app.get('/facilities/:id.html', async (req, res) => {
