@@ -136,9 +136,10 @@ window.initFacilityDetailPage = async function() {
          }
 
         // Location Map
-        if(facilityAddressMapEl) facilityAddressMapEl.textContent = props.address || 'N/A';
-        if(facilityRegionEl) facilityRegionEl.textContent = props.region || 'N/A'; // Added
-        if(facilityCountryEl) facilityCountryEl.textContent = props.country || 'N/A'; // Added
+        // Use the actual properties fetched, default to empty string if missing
+        if(facilityAddressMapEl) facilityAddressMapEl.textContent = props.address || '';
+        if(facilityRegionEl) facilityRegionEl.textContent = props.region || '';
+        if(facilityCountryEl) facilityCountryEl.textContent = props.country || ''; // Default to empty if not USA/provided
         if (facilityMapContainer) {
             // Ensure Leaflet is loaded (it should be included in the HTML)
              if (typeof L === 'undefined') {
@@ -312,7 +313,10 @@ window.initFacilityDetailPage = async function() {
         try {
             const response = await fetch(`/api/facilities/${facilityId}`, { // Use facilityId from scope
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}` // Add Auth header
+                 },
                 body: JSON.stringify(updatedProps),
             });
 
@@ -363,14 +367,10 @@ window.initFacilityDetailPage = async function() {
     // --- Main Execution Logic for initFacilityDetailPage ---
     try {
         // Check session status first (needed for edit button)
-        let isLoggedIn = false;
-        try {
-            const sessionResponse = await fetch('/api/session'); // Use absolute path
-            const sessionData = await sessionResponse.json();
-            isLoggedIn = sessionData.loggedIn;
-        } catch (sessionError) {
-            console.error('Error checking session status:', sessionError);
-        }
+        // Determine login status based on localStorage token
+        const authToken = localStorage.getItem('authToken');
+        const isLoggedIn = !!authToken; // Simple check: if token exists, assume logged in for button display
+        console.log(`Facility detail page determined isLoggedIn: ${isLoggedIn}`);
 
         // Fetch facility data
         const response = await fetch(`/api/facilities/${facilityId}`); // Use absolute path

@@ -8,9 +8,16 @@ let currentFacilityData = null; // Store the original fetched data
 document.addEventListener('DOMContentLoaded', async () => {
     // Removed getting Document DOM Elements
 
-    // 1. Check Login Status
-    const isLoggedIn = await checkLogin();
-    if (!isLoggedIn) return; // Stop if not logged in
+    // 1. Check Login Status (REMOVED - Handled globally by common.js)
+    // We assume common.js would redirect if no valid token exists before this script runs.
+    // We still need to check for the token before making API calls.
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+        console.error("No auth token found. Redirecting to login.");
+        // Redirect logic might be better placed in common.js, but adding here for safety.
+        window.location.href = 'login.html';
+        return; // Stop execution
+    }
 
     // 2. Get Facility ID from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -29,7 +36,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Fetch Existing Facility Data
     try {
-        const response = await fetch(`/api/facilities/${currentFacilityId}`);
+        const response = await fetch(`/api/facilities/${currentFacilityId}`, {
+             headers: {
+                 'Authorization': `Bearer ${authToken}` // Add Auth header
+             }
+         });
         if (!response.ok) {
             if (response.status === 404) {
                 throw new Error(`Facility with ID "${currentFacilityId}" not found.`);
@@ -62,8 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         form.addEventListener('submit', handleFormSubmit);
     }
 
-    // 6. Setup Header Auth Status
-    checkAuthStatus();
+    // 6. Setup Header Auth Status (REMOVED - Handled globally by common.js)
 });
 
 // Function to populate form fields
@@ -205,6 +215,7 @@ async function handleFormSubmit(event) {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}` // Add Auth header
             },
             body: JSON.stringify(updatedProperties), // Send only properties
         });
@@ -242,68 +253,5 @@ function showSuccess(message) {
 }
 
 
-// --- Auth Check/Logout (Copied) ---
-async function checkLogin() {
-    try {
-        const response = await fetch('/api/session');
-        const sessionData = await response.json();
-        if (!sessionData.loggedIn) {
-            window.location.href = 'login.html'; // Redirect to login if not authenticated
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('Error checking session status:', error);
-        window.location.href = 'login.html'; // Redirect on error
-        return false;
-    }
-}
-
-async function checkAuthStatus() {
-    const authStatusElement = document.getElementById('authStatus');
-    if (!authStatusElement) return;
-    try {
-        const response = await fetch('/api/session');
-        const sessionData = await response.json();
-        updateHeaderAuthStatus(sessionData);
-    } catch (error) {
-        console.error('Error checking auth status:', error);
-        updateHeaderAuthStatus({ loggedIn: false, error: true });
-    }
-}
-
-function updateHeaderAuthStatus(sessionData) {
-     const authStatusElement = document.getElementById('authStatus');
-     if (!authStatusElement) return;
-
-     if (sessionData.loggedIn) {
-         authStatusElement.innerHTML = `
-             <span class="navbar-text me-3">Welcome, ${sessionData.user.username}!</span>
-             <a href="new-facility.html" class="btn btn-sm btn-success me-2"><i class="fas fa-plus"></i> Add Facility</a>
-             <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger">Logout</a>
-         `;
-         const logoutLink = document.getElementById('logoutLink');
-         if(logoutLink) logoutLink.addEventListener('click', handleLogout);
-     } else {
-         authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
-     }
-     if (sessionData.error) {
-          authStatusElement.innerHTML += ' <span class="text-danger small">(Session check failed)</span>';
-     }
-}
-
-async function handleLogout(event) {
-    event.preventDefault();
-    try {
-        const response = await fetch('/api/logout');
-        const result = await response.json();
-        if (result.success) {
-            window.location.href = 'index.html'; // Go to dashboard after logout
-        } else {
-            alert('Logout failed. Please try again.');
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-        alert('An error occurred during logout.');
-    }
-}
+// --- REMOVED Old Auth Check/Logout Functions ---
+// This logic should be handled globally by common.js using localStorage token

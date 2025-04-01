@@ -397,6 +397,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        // Add the Authorization header
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                     },
                     body: JSON.stringify(newFacilityFeature),
                 });

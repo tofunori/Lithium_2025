@@ -5,7 +5,7 @@ const admin = require('firebase-admin'); // Firebase Admin SDK
 const jwt = require('jsonwebtoken'); // Import JWT library
 const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
 const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
-
+const { generateFacilityPageHTML } = require('./page-generator'); // Import the dynamic page generator
 const app = express();
 
 // Trust the Vercel proxy to correctly set secure headers (like X-Forwarded-Proto)
@@ -244,6 +244,71 @@ app.put('/api/facilities/:id', isAuthenticated, async (req, res) => {
         res.status(500).send(`Error updating facility ${facilityId}`);
     }
 });
+
+
+// --- Dynamic Facility Page Route ---
+app.get('/facilities/:id.html', async (req, res) => {
+    const facilityId = req.params.id;
+    console.log(`Request received for dynamic page: /facilities/${facilityId}.html`);
+
+    try {
+        // 1. Fetch the main facility data
+        const facilityRef = db.collection('facilities').doc(facilityId);
+        const facilitySnap = await facilityRef.get();
+
+        if (!facilitySnap.exists) {
+            console.log(`Facility ${facilityId} not found for dynamic page generation.`);
+            return res.status(404).send(`Facility with ID ${facilityId} not found.`);
+        }
+        const facilityData = facilitySnap.data();
+        const facilityProperties = facilityData.properties;
+
+        if (!facilityProperties) {
+             console.error(`Facility ${facilityId} is missing 'properties' field.`);
+             return res.status(500).send('Internal server error: Facility data is incomplete.');
+        }
+
+        // 2. Fetch related facilities (same company, different ID)
+        let relatedFacilitiesProps = [];
+        if (facilityProperties.company) {
+            console.log(`Fetching related facilities for company: ${facilityProperties.company}`);
+            const relatedQuery = db.collection('facilities')
+                .where('properties.company', '==', facilityProperties.company)
+                .where(admin.firestore.FieldPath.documentId(), '!=', facilityId); // Exclude self using FieldPath
+
+            const relatedSnapshot = await relatedQuery.get();
+            relatedSnapshot.forEach(doc => {
+                const relatedData = doc.data();
+                if (relatedData.properties) { // Ensure related facilities also have properties
+                     // Only add properties needed for the link list (id, name)
+                     relatedFacilitiesProps.push({
+                         id: relatedData.properties.id || doc.id,
+                         name: relatedData.properties.name || 'Unnamed Facility'
+                     });
+                }
+            });
+             console.log(`Found ${relatedFacilitiesProps.length} related facilities.`);
+        } else {
+             console.log(`No company specified for facility ${facilityId}, skipping related facilities query.`);
+        }
+
+
+        // 3. Generate HTML using the imported function
+        console.log(`Generating HTML for facility: ${facilityProperties.name}`);
+        const html = generateFacilityPageHTML(facilityProperties, relatedFacilitiesProps);
+
+        // 4. Send the generated HTML as the response
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+        console.log(`Successfully served dynamic page for facility: ${facilityId}`);
+
+    } catch (err) {
+        console.error(`Error generating dynamic page for facility ${facilityId}:`, err);
+        res.status(500).send('Error generating facility page.');
+    }
+});
+// --- End Dynamic Facility Page Route ---
+
 
 // Filesystem Item Routes
 app.post('/api/facilities/:id/files', isAuthenticated, upload.single('document'), async (req, res) => {
