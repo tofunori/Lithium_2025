@@ -23,10 +23,7 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
 
-    <!-- Leaflet JS (Moved to head with defer) -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-    <!-- Leaflet MarkerCluster JS (Moved to head with defer) -->
-    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js" defer></script>
+    <!-- Leaflet JS and MarkerCluster JS will be loaded dynamically by common.js for the map page -->
 </head>
 <body>
     <div class="dashboard-container">
@@ -89,7 +86,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Page-Specific Dashboard JS -->
-    <script src="js/dashboard.js" data-page-script="true"></script>
+    <script src="js/dashboard.js" data-page-script="true" defer></script>
 
     <!-- Common JS (Loads Header, Handles Theme/Auth, SPA Routing) -->
     <script src="js/common.js"></script>

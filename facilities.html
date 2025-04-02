@@ -43,6 +43,16 @@
                             <input type="text" class="form-control" id="facilitySearch" placeholder="Search facilities...">
                         </div>
 
+                        <!-- Column Headers -->
+                        <div class="facility-list-header d-none d-md-flex mb-2"> <!-- Hide on small screens, flex on medium+ -->
+                            <span class="col-company">Company</span>
+                            <span class="col-location">Location</span>
+                            <span class="col-volume">Volume (tons/year)</span>
+                            <span class="col-method">Method</span>
+                            <span class="col-status">Status</span>
+                            <span class="col-actions">Actions</span> <!-- Placeholder for edit button alignment -->
+                        </div>
+
                         <div id="facilitiesList">
                             <!-- Facility items will be loaded here by JavaScript -->
                             <p class="text-center text-muted">Loading facilities...</p>

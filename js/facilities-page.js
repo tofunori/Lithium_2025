@@ -120,19 +120,20 @@ function populateFacilitiesList(facilityCollection) { // Removed isLoggedIn para
         // Add data-id attribute for easier selection
         facilityItem.setAttribute('data-id', props.id);
         facilityItem.className = `facility-item`; // Removed ID from class for simplicity
+        // Extract number from capacity string (e.g., "10,000 tonnes..." -> "10,000")
+        const capacityValue = props.capacity ? props.capacity.split(' ')[0] : 'N/A';
+
         facilityItem.innerHTML = `
-            <a href="facilities/${props.id}.html" class="facility-link"> <!-- Added class for potential SPA handling -->
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <h6 class="mb-0">${props.name}</h6>
-                        <small class="text-muted">${props.company || ''}, ${props.address || ''}</small>
-                    </div>
-                    <div> <!-- Wrapper for status and potential edit button -->
-                        <span class="status-badge ${statusClass}">${props.status}</span>
-                        ${isLoggedIn ? `<a href="edit-facility.html?id=${props.id}" class="btn btn-sm btn-outline-secondary ms-2 edit-link" title="Edit Facility"><i class="fas fa-edit"></i></a>` : ''}
-                    </div>
-                </div>
-            </a> <!-- Main link still goes to detail page -->
+            <div class="facility-item-content"> <!-- Wrapper for flex layout -->
+                <span class="col-company"><a href="facilities/${props.id}.html" class="facility-link">${props.company || 'N/A'}</a></span>
+                <span class="col-location">${props.address || 'N/A'}</span>
+                <span class="col-volume">${capacityValue}</span>
+                <span class="col-method">${props.technology || 'N/A'}</span>
+                <span class="col-status"><span class="status-badge ${statusClass}">${props.status || 'N/A'}</span></span>
+                <span class="col-actions">
+                    ${isLoggedIn ? `<a href="edit-facility.html?id=${props.id}" class="btn btn-sm btn-outline-secondary ms-1 edit-link" title="Edit Facility"><i class="fas fa-edit"></i></a>` : ''}
+                </span>
+            </div>
         `;
 
         facilitiesList.appendChild(facilityItem);

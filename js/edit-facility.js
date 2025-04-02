@@ -54,9 +54,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         populateForm(currentFacilityData);
         if (pageTitleElement) pageTitleElement.textContent = `Edit: ${currentFacilityData.properties.name}`;
 
-        // Set Cancel button link AFTER data is loaded and ID is confirmed
+        // Add Cancel button listener to go back to the main list
         if (cancelButton) {
-            cancelButton.href = `facilities/${currentFacilityId}.html`;
+            // Remove the default href setting
+            // cancelButton.href = `facilities/${currentFacilityId}.html`; // REMOVED
+            cancelButton.addEventListener('click', (event) => {
+                event.preventDefault(); // Prevent default link behavior
+                window.location.href = 'facilities.html'; // Navigate to the list page
+            });
         }
 
         // Removed Upload Button Listener

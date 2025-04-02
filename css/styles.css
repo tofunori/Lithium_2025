@@ -163,6 +163,7 @@ body {
 
 #map {
     height: 100%;
+    line-height: normal; /* Prevent body line-height from affecting map tiles */
 }
 
 /* Facilities List (If used elsewhere) */
@@ -791,3 +792,134 @@ tr[draggable="true"]:active,
 li.tree-node[draggable="true"]:active {
     cursor: grabbing; /* Indicate dragging */
 }
+
+/* Facilities List - Column Layout */
+.facility-list-header,
+.facility-item-content {
+    display: flex;
+    align-items: center; /* Vertically align items in the center */
+    padding: 0.5rem 0.75rem; /* Consistent padding */
+    border-bottom: 1px solid var(--border-color); /* Separator line */
+    gap: 0.5rem; /* Reduced space between columns */
+}
+
+.facility-list-header {
+    font-weight: bold;
+    color: var(--text-muted-color); /* Bootstrap secondary text color */
+    background-color: var(--light-bg); /* Light background for header */
+    border-top: 1px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color); /* Stronger bottom border for header */
+}
+
+.facility-item {
+    /* Remove default padding if any, handled by facility-item-content */
+    padding: 0;
+    border-bottom: none; /* Remove default item border, handled by content */
+}
+
+.facility-item:hover {
+     background-color: var(--facility-item-hover-bg); /* Apply hover to the whole item */
+}
+
+.facility-item:last-child .facility-item-content {
+    border-bottom: none; /* Remove border for the last item */
+}
+
+.facility-item-content span {
+    /* Default behavior for columns */
+    flex-shrink: 0; /* Prevent shrinking */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis for overflow */
+    white-space: nowrap; /* Prevent wrapping */
+    display: block; /* Ensure spans behave like blocks for width/overflow */
+}
+
+/* Define column widths (adjust percentages as needed) */
+.col-company { flex-basis: 20%; }
+.col-location { flex-basis: 18%; } /* Reverted reduction */
+.col-volume { flex-basis: 17%; text-align: right; } /* Increased */
+.col-method { flex-basis: 20%; } /* Increased */
+.col-status { flex-basis: 10%; text-align: center; } /* Center status */
+.col-actions { flex-basis: 8%; text-align: right; } /* Minimal space for actions */
+
+/* Ensure status badge fits */
+.col-status .status-badge {
+    display: inline-block; /* Allow centering */
+    padding: 0.25em 0.6em; /* Adjust padding if needed */
+}
+
+/* Link styling within company column */
+.col-company a {
+    text-decoration: none;
+    color: inherit;
+    font-weight: 500; /* Make company name slightly bolder */
+}
+.col-company a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) { /* Adjust breakpoint as needed */
+    .facility-list-header .col-volume,
+    .facility-list-header .col-method,
+    .facility-item-content .col-volume,
+    .facility-item-content .col-method {
+        display: none; /* Hide less critical columns on smaller screens */
+    }
+    .col-company { flex-basis: 30%; }
+    .col-location { flex-basis: 40%; }
+    .col-status { flex-basis: 15%; }
+    .col-actions { flex-basis: 15%; }
+}
+
+@media (max-width: 767px) { /* Below medium breakpoint where header hides */
+     /* Revert to simpler stacking layout if header is hidden */
+    .facility-item-content {
+        flex-direction: column; /* Stack items vertically */
+        align-items: flex-start; /* Align items to the start */
+        gap: 0.25rem; /* Reduce gap */
+        padding: 0.75rem; /* Restore padding */
+        border-bottom: 1px solid var(--border-color); /* Add border back for stacked items */
+    }
+    .facility-item:last-child .facility-item-content {
+        border-bottom: 1px solid var(--border-color); /* Ensure last item also has border in stacked view */
+    }
+    .facility-item-content span {
+        flex-basis: auto !important; /* Reset flex-basis */
+        width: 100%; /* Take full width */
+        text-align: left !important; /* Reset text alignment */
+        white-space: normal; /* Allow wrapping */
+        margin-bottom: 0.25rem;
+        overflow: visible; /* Show full text */
+        text-overflow: clip; /* Remove ellipsis */
+    }
+    .col-actions {
+        text-align: left !important; /* Align actions left */
+        margin-top: 0.5rem;
+    }
+    .col-status .status-badge {
+       display: inline-block; /* Keep badge inline */
+       margin-bottom: 0.5rem;
+    }
+    /* Show hidden columns again if needed in stacked view */
+     .col-volume, .col-method {
+        display: block;
+    }
+     /* Add labels for clarity in stacked view */
+    .col-company a::before { content: "Company: "; font-weight: bold; }
+    .col-location::before { content: "Location: "; font-weight: bold; }
+    .col-volume::before { content: "Volume: "; font-weight: bold; }
+    .col-method::before { content: "Method: "; font-weight: bold; }
+    .col-status::before { content: "Status: "; font-weight: bold; }
+
+}
+
+/* Reduce padding and size on edit button in facility list */
+.facility-item-content .col-actions .edit-link {
+    padding: 0.1rem 0.4rem; /* Restore some horizontal padding */
+    font-size: 0.9em;      /* Slightly larger icon */
+    line-height: 1;        /* Adjust line height for smaller size */
+    /* max-width: 30px; Removed width limit */
+}
+
+
