@@ -1384,9 +1384,14 @@ function handleAddLinkClick() {
         tags: [] // Add default tags if needed
     };
 
+    const token = localStorage.getItem('authToken'); // Get the token from local storage
+
     fetch('/api/doc_items', { // Use the new endpoint
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Add the Authorization header
+        },
         body: JSON.stringify(newItemData)
     })
     .then(async response => {
