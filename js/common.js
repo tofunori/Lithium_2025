@@ -202,16 +202,42 @@ async function loadPageContent(url, pushState = true) {
                     console.log(`URL indicates facility page, using initializer: ${finalInitializerName}`);
                 }
 
-                // Now check and run using the potentially overridden name
-                if (finalInitializerName && typeof window[finalInitializerName] === 'function') {
-                    console.log(`Running initializer: ${finalInitializerName}`);
-                    try {
-                        window[finalInitializerName]();
-                    } catch (initError) {
-                        console.error(`Error running initializer ${finalInitializerName}:`, initError);
+                // Function to actually execute the initializer
+                const executeInitializer = () => {
+                    if (finalInitializerName && typeof window[finalInitializerName] === 'function') {
+                        console.log(`Running initializer: ${finalInitializerName}`);
+                        try {
+                            window[finalInitializerName]();
+                        } catch (initError) {
+                            console.error(`Error running initializer ${finalInitializerName}:`, initError);
+                        }
+                    } else {
+                        console.log(`Initializer ${finalInitializerName || 'none specified'} not found or not a function.`);
+                    }
+                };
+
+                // Special handling for charts page: ensure Chart.js is loaded
+                if (finalInitializerName === 'initChartsPage') {
+                    if (typeof window.Chart === 'undefined') {
+                        console.log('Chart.js not found, loading dynamically...');
+                        const chartScript = document.createElement('script');
+                        chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                        chartScript.onload = () => {
+                            console.log('Chart.js loaded dynamically.');
+                            executeInitializer(); // Run initializer AFTER Chart.js loads
+                        };
+                        chartScript.onerror = () => {
+                            console.error('Failed to load Chart.js dynamically.');
+                            // Optionally, still try to run initializer or show an error
+                        };
+                        document.body.appendChild(chartScript);
+                    } else {
+                        console.log('Chart.js already loaded.');
+                        executeInitializer(); // Chart.js already present, run initializer directly
                     }
                 } else {
-                    console.log(`Initializer ${finalInitializerName || 'none specified'} not found or not a function.`);
+                    // For all other pages, run the initializer directly
+                    executeInitializer();
                 }
             };
 
