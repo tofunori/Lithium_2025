@@ -38,6 +38,14 @@ var filterTypeSelect = null;
 window.initDocumentsPage = async function() { // Make the main function async
     console.log("Initializing File Explorer Documents Page (New Structure)...");
 
+    // Check authentication status immediately
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        console.log("[Auth] No token found. Redirecting to login.");
+        window.location.href = '/login.html';
+        return; // Stop initialization
+    }
+
     // --- Query DOM Elements ---
     // Removed: facilitySelect
     documentManagementSection = document.getElementById('documentManagementSection');
@@ -453,8 +461,8 @@ async function fetchWithAuth(url, options = {}) {
         // Clear potentially invalid token and redirect to login
         localStorage.removeItem('authToken'); 
         showError("Authentication failed or expired. Please log in again."); // Show message
-        // Consider delaying redirect slightly to let user see message
-        setTimeout(() => { window.location.href = '/login.html'; }, 2000); 
+        // Redirect immediately
+        window.location.href = '/login.html';
         // Throw an error to stop further processing in the calling function
         throw new Error(`Authentication required (Status: ${response.status})`); 
     }
