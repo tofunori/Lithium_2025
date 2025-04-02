@@ -18,23 +18,24 @@ const dataFilePath = path.join(__dirname, '..', 'data', 'facilities.json');
 // --- Firebase Initialization ---
 let serviceAccount;
 const firebaseBucketName = process.env.FIREBASE_STORAGE_BUCKET || 'leafy-bulwark-442103-e7.firebasestorage.app'; // Fallback if not set
+let firebaseAdminInitialized = false;
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    console.log("Attempting Firebase init via environment variable...");
+    console.log("Attempting Firebase Admin init via environment variable...");
     try {
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     } catch (e) {
-        console.error("FATAL ERROR: Could not parse FIREBASE_SERVICE_ACCOUNT environment variable.", e);
-        // process.exit(1); // Exit if parsing fails
+        console.error("ERROR: Could not parse FIREBASE_SERVICE_ACCOUNT environment variable.", e);
     }
 } else {
-    console.log("Attempting Firebase init via local file...");
+    console.log("Attempting Firebase Admin init via local file...");
+    // Use the specific existing filename
     const serviceAccountPath = path.join(__dirname, '..', 'config', 'leafy-bulwark-442103-e7-firebase-adminsdk-fbsvc-31a9c3e896.json');
     try {
+        // Use require for JSON files
         serviceAccount = require(serviceAccountPath);
     } catch (e) {
-        console.error(`FATAL ERROR: Could not load local service account file at ${serviceAccountPath}. Ensure the file exists and path is correct.`, e);
-        // process.exit(1); // Exit if local file fails
+        console.warn(`Could not load local service account file at ${serviceAccountPath}. This is expected in production if using env vars. Error: ${e.message}`);
     }
 }
 
@@ -45,20 +46,37 @@ if (serviceAccount) {
                 credential: admin.credential.cert(serviceAccount),
                 storageBucket: firebaseBucketName
             });
-            console.log('Firebase Admin SDK initialized successfully.');
+            console.log('Firebase Admin SDK initialized successfully for authentication.');
+            firebaseAdminInitialized = true;
         } else {
             console.log('Firebase Admin SDK already initialized.');
+            firebaseAdminInitialized = true;
         }
     } catch (error) {
         console.error('Error initializing Firebase Admin SDK:', error);
-        // process.exit(1);
     }
 } else {
-     console.error("FATAL ERROR: Firebase Service Account could not be loaded from environment variable or local file.");
-     // process.exit(1);
+     console.warn("Firebase Service Account could not be loaded. Firebase token verification will be skipped.");
 }
-const bucket = admin.storage().bucket();
-const db = admin.firestore(); // Firestore database instance
+
+// Initialize Firestore and Storage even if Admin SDK fails for other operations
+let db, bucket;
+try {
+    // Re-initialize without credentials if Admin SDK failed but we still want client-side SDK features
+    if (!admin.apps.length) {
+         admin.initializeApp(); // Initialize without credentials for client-side usage if needed
+         console.log("Initialized Firebase client SDK (no admin credentials).");
+    }
+    db = admin.firestore();
+    bucket = admin.storage().bucket();
+    console.log("Firestore and Storage references obtained.");
+} catch(e) {
+    console.error("FATAL ERROR: Could not initialize Firestore or Storage.", e);
+    // Consider exiting if these are critical: process.exit(1);
+    // Assign dummy objects or handle gracefully elsewhere
+    db = { collection: () => ({ get: async () => ({ empty: true, forEach: () => {} }), doc: () => ({ get: async () => ({ exists: false }) }) }) };
+    bucket = { file: () => ({ save: async () => {}, delete: async () => {}, exists: async () => [false], getSignedUrl: async () => ['#'] }) };
+}
 // --- End Firebase Initialization ---
 
 
@@ -82,23 +100,64 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-very-strong-jwt-secret-key-CHANGE-ME-IN-ENV'; // Use a strong secret, ideally from env vars
 
+// Updated isAuthenticated middleware to handle both JWT and Firebase tokens
 function isAuthenticated(req, res, next) {
-    const authHeader = req.headers.authorization;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1]; // Extract token after "Bearer "
-
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) {
-                console.warn('JWT Verification Failed:', err.message);
-                return res.status(403).json({ message: 'Forbidden: Invalid or expired token.' }); // Forbidden if token is invalid/expired
-            }
-            req.user = user; // Attach decoded user payload to request object
-            next(); // Proceed to the protected route
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized: No token provided.' });
+  }
+  
+  const token = authHeader.split(' ')[1];
+  
+  // First try to verify as a Firebase token if Admin SDK is initialized
+  if (firebaseAdminInitialized) {
+    admin.auth().verifyIdToken(token)
+      .then(decodedToken => {
+        // Add uid for consistency if using Firebase Auth
+        req.user = { ...decodedToken, uid: decodedToken.uid };
+        console.log('Authenticated with Firebase token');
+        next(); // Proceed to the protected route
+      })
+      .catch(firebaseError => {
+        // Log only if it's not a standard token expiration/invalid error
+        if (firebaseError.code !== 'auth/id-token-expired' && firebaseError.code !== 'auth/argument-error') {
+             console.warn('Firebase token verification failed:', firebaseError.message);
+        }
+        console.log('Not a valid Firebase token or Admin SDK init failed, trying JWT...');
+        
+        // If not a valid Firebase token, try as a JWT token
+        jwt.verify(token, JWT_SECRET, (jwtError, user) => {
+          if (jwtError) {
+            console.warn('JWT Verification Failed:', jwtError.message);
+            // Combine potential errors for clarity
+            return res.status(403).json({
+                message: 'Forbidden: Invalid or expired token.',
+                firebaseError: firebaseError.message,
+                jwtError: jwtError.message
+            });
+          }
+          
+          // Attach decoded user payload (might lack uid compared to Firebase)
+          req.user = user;
+          console.log('Authenticated with JWT token');
+          next(); // Proceed to the protected route
         });
-    } else {
-        res.status(401).json({ message: 'Unauthorized: No token provided.' }); // Unauthorized if no token
-    }
+      });
+  } else {
+    // If Firebase Admin is not initialized, fall back to JWT only
+    console.log('Firebase Admin SDK not initialized, attempting JWT verification only...');
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        console.warn('JWT Verification Failed:', err.message);
+        return res.status(403).json({ message: 'Forbidden: Invalid or expired token.', jwtError: err.message });
+      }
+      
+      req.user = user; // Attach decoded user payload
+      console.log('Authenticated with JWT token (Firebase Admin not available)');
+      next(); // Proceed to the protected route
+    });
+  }
 }
 // --- End Authentication ---
 

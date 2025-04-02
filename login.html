@@ -63,7 +63,12 @@
     </div> <!-- End padding div -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script> <!-- Added Bootstrap JS -->
-    <script>
+    <script type="module">
+      import { authService } from './js/auth-service.js';
+  // Wait for DOM content to load before adding listeners
+  document.addEventListener('DOMContentLoaded', function() {
+        
+        // Add form submit listener
         document.getElementById('loginForm').addEventListener('submit', async function(event) {
             event.preventDefault(); // Prevent default form submission
 
@@ -73,38 +78,45 @@
             errorMessageDiv.classList.add('d-none'); // Hide error message initially
 
             try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username, password }),
-                });
+                const result = await authService.login(username, password);
 
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    // Login successful
-                    if (result.token) {
-                        localStorage.setItem('authToken', result.token); // Store the token
-                        console.log('Auth token stored in localStorage.');
-                        window.location.href = 'index.html'; // Redirect to dashboard
-                    } else {
-                        // Handle case where login succeeded but no token was sent (should not happen with JWT backend)
-                        errorMessageDiv.textContent = 'Login successful, but no authentication token received.';
-                        errorMessageDiv.classList.remove('d-none');
-                    }
+                if (result.success) {
+                    console.log('Login successful using', authService.isUsingFirebaseAuth() ? 'Firebase' : 'JWT');
+                    window.location.href = 'index.html'; // Redirect to dashboard
                 } else {
-                    // Login failed, show error message
+                    // This path might not be reached if authService throws errors
                     errorMessageDiv.textContent = result.message || 'Login failed. Please check your credentials.';
                     errorMessageDiv.classList.remove('d-none');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                errorMessageDiv.textContent = 'An error occurred during login. Please try again.';
+                errorMessageDiv.textContent = error.message || 'An error occurred during login. Please try again.';
                 errorMessageDiv.classList.remove('d-none');
             }
         });
+
+        // Add a toggle for auth system (for testing)
+        const authSystemToggle = document.createElement('div');
+        authSystemToggle.className = 'form-check mt-3';
+        authSystemToggle.innerHTML = `
+          <input class="form-check-input" type="checkbox" id="useFirebaseAuth">
+          <label class="form-check-label" for="useFirebaseAuth">
+            Use Firebase Authentication (Experimental)
+          </label>
+        `;
+
+        document.getElementById('loginForm').appendChild(authSystemToggle);
+
+        // Initialize toggle state
+        const useFirebaseAuthCheckbox = document.getElementById('useFirebaseAuth');
+        useFirebaseAuthCheckbox.checked = authService.isUsingFirebaseAuth();
+
+        // Add event listener for toggle
+        useFirebaseAuthCheckbox.addEventListener('change', function(e) {
+          authService.toggleAuthSystem(e.target.checked);
+          // The page will reload due to the toggleAuthSystem implementation
+        });
+  }); // End of DOMContentLoaded listener
     </script>
 
     <!-- Footer Placeholder -->

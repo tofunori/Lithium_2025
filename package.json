@@ -13,6 +13,7 @@
     "connect-firestore": "^0.1.9",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "firebase": "^11.6.0",
     "firebase-admin": "^11.11.1",
     "jsonwebtoken": "^9.0.2",
     "mime": "^4.0.6",

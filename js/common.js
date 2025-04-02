@@ -1,4 +1,5 @@
 // js/common.js - Handles header loading, theme, auth, and SPA routing
+import { authService } from './auth-service.js';
 
 // --- Page Initializers Mapping ---
 const pageInitializerNames = {
@@ -414,45 +415,69 @@ function initializeThemeSwitcher() {
     }
 }
 
-function checkAuthStatus() {
-    // ... (implementation remains the same)
-    const authStatusElement = document.getElementById('authStatus');
-    if (!authStatusElement) {
-         console.warn("Auth status element not found.");
-         return;
-    }
-    const token = localStorage.getItem('authToken');
-    if (token) {
-        const username = 'Admin'; // Placeholder
-        authStatusElement.innerHTML = `
-            <span>Welcome, ${username}!</span>
-            <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
-        `;
-        const logoutLink = document.getElementById('logoutLink');
-         if (logoutLink) {
-             if (!logoutLink.hasAttribute('data-listener-added')) {
-                logoutLink.addEventListener('click', handleLogout);
-                logoutLink.setAttribute('data-listener-added', 'true');
-             }
-         }
-         // console.log("User is logged in (JWT token found)."); // Less verbose
+async function checkAuthStatus() {
+  const authStatusElement = document.getElementById('authStatus');
+  if (!authStatusElement) {
+    console.warn("Auth status element not found.");
+    return;
+  }
+  
+  try {
+    const user = await authService.getCurrentUser();
+    
+    if (user) {
+      // User is logged in
+      // Determine display name based on auth method
+      const displayName = authService.isUsingFirebaseAuth()
+        ? (user.email || 'User') // Use email if Firebase user
+        : 'Admin'; // Default to 'Admin' for JWT
+      
+      authStatusElement.innerHTML = `
+        <span>Welcome, ${displayName}!</span>
+        <a href="#" id="logoutLink" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+      `;
+      
+      const logoutLink = document.getElementById('logoutLink');
+      if (logoutLink) {
+        // Ensure listener is only added once
+        if (!logoutLink.hasAttribute('data-listener-added')) {
+          logoutLink.addEventListener('click', handleLogout);
+          logoutLink.setAttribute('data-listener-added', 'true');
+        }
+      }
     } else {
-        authStatusElement.innerHTML = `
-            <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
-        `;
-        // console.log("User is logged out (No JWT token found)."); // Less verbose
+      // User is logged out
+      authStatusElement.innerHTML = `
+        <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
+      `;
     }
+  } catch (error) {
+    console.error('Error checking auth status:', error);
+    // Fallback to logged-out state on error
+    authStatusElement.innerHTML = `
+      <a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>
+    `;
+  }
 }
 
-function handleLogout(event) {
-    // ... (implementation remains the same)
-    event.preventDefault();
-    console.log("Logout clicked");
-    localStorage.removeItem('authToken');
-    console.log("Auth token removed from localStorage.");
+async function handleLogout(event) {
+  event.preventDefault();
+  console.log("Logout clicked");
+  
+  try {
+    await authService.logout();
+    console.log("Logged out successfully via authService.");
+    
+    // Update UI immediately
     const authStatusElement = document.getElementById('authStatus');
     if (authStatusElement) {
-        authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
+      authStatusElement.innerHTML = `<a href="login.html" class="btn btn-sm btn-outline-success">Admin Login</a>`;
     }
-    loadPageContent('index.html'); // Reload index page content using SPA logic
+    
+    // Navigate to home page using SPA logic
+    loadPageContent('index.html');
+  } catch (error) {
+    console.error('Error during logout:', error);
+    // Optionally show an error message to the user
+  }
 }
