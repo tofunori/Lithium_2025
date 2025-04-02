@@ -152,12 +152,16 @@ app.get('/api/facilities/:id', async (req, res) => {
     // GET a specific facility by ID from Firestore
     const facilityId = req.params.id;
     try {
-        const docRef = db.collection('facilities').doc(facilityId);
-        const docSnap = await docRef.get();
-        if (!docSnap.exists) {
-            console.log(`Facility with ID ${facilityId} not found in Firestore.`);
+        // Query for the document where the 'properties.id' field matches the requested ID
+        const facilitiesRef = db.collection('facilities');
+        const querySnapshot = await facilitiesRef.where('properties.id', '==', facilityId).limit(1).get();
+
+        if (querySnapshot.empty) {
+            console.log(`Facility with properties.id ${facilityId} not found in Firestore.`);
             return res.status(404).json({ message: `Facility with ID ${facilityId} not found.` });
         }
+        // Get the document snapshot from the query result
+        const docSnap = querySnapshot.docs[0];
         const featureData = docSnap.data();
         if (!featureData.properties) featureData.properties = {};
         if (!featureData.properties.id) featureData.properties.id = docSnap.id;
