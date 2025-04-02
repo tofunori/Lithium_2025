@@ -134,18 +134,30 @@ function initializeMap(facilityCollection) {
         return;
     }
 
-    // If map already exists, remove it before creating a new one
-    // This handles cases where the user navigates away and back.
-    // Leaflet doesn't always clean up perfectly when just updating layers in an SPA.
-    if (mapInstance) {
-        console.log("Removing existing map instance."); // Debug log
-        mapInstance.remove();
-        mapInstance = null;
-    }
+    // --- Check if Map Instance Exists and is Valid ---
+    let isNewInstance = false;
+    if (mapInstance && document.body.contains(mapInstance.getContainer())) {
+        console.log("Reusing existing map instance.");
+        // Clear old data layer if it exists
+        if (currentGeoJsonLayer && mapInstance.hasLayer(currentGeoJsonLayer)) {
+            mapInstance.removeLayer(currentGeoJsonLayer);
+            console.log("Removed old GeoJSON layer.");
+        }
+        currentGeoJsonLayer = null;
+    } else {
+        console.log("Creating new map instance.");
+        isNewInstance = true;
+        // If instance exists but container is detached, try removing it first
+        if (mapInstance) {
+            try { mapInstance.remove(); } catch(e) { console.warn("Error removing detached map instance:", e); }
+        }
+        mapInstance = null; // Ensure it's null before creating
 
-    // Create new map instance
-    console.log("Creating new map instance."); // Debug log
-    mapInstance = L.map('map').setView([39.8283, -98.5795], 4);
+        // DEBUG: Log map container size before initialization
+        const mapStyle = window.getComputedStyle(mapContainer);
+        console.log(`Map container computed size before L.map: ${mapStyle.width} x ${mapStyle.height}`);
+
+        mapInstance = L.map('map').setView([39.8283, -98.5795], 4);
 
     // Add OpenStreetMap as base layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -172,10 +184,37 @@ function initializeMap(facilityCollection) {
     basemaps["Satellite"].addTo(mapInstance);
     L.control.layers(basemaps).addTo(mapInstance);
 
-    // Setup event listeners ONLY when the map is first created
-    setupEventListeners();
+    // Setup base layers, controls, and event listeners ONLY when creating a new instance
+    if (isNewInstance) {
+        // Add OpenStreetMap as base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(mapInstance);
 
+        // Add alternate basemaps
+        const basemaps = {
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }),
+            "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                maxZoom: 19
+            }),
+            "Terrain": L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}{r}.png', {
+                attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18
+            })
+        };
+        // Default to Satellite view
+        basemaps["Satellite"].addTo(mapInstance);
+        L.control.layers(basemaps).addTo(mapInstance);
 
+        // Setup event listeners ONLY when the map is first created
+        setupEventListeners();
+    }
+    }
     // Function to get marker color based on status
     function getMarkerColor(status) {
         switch(status.toLowerCase()) {
@@ -192,12 +231,11 @@ function initializeMap(facilityCollection) {
         }
     }
 
-    // Create markers for each facility using the fetched data
-    // Store the layer group so we can clear and redraw it
+    // --- Add GeoJSON Data Layer (Always happens) ---
+    // Ensure previous layer is removed if reusing instance (handled above)
     if (currentGeoJsonLayer) {
-        // We are re-creating the map instance now, so no need to remove layer from old instance
-        // mapInstance.removeLayer(currentGeoJsonLayer); // Remove previous layer if updating
-        currentGeoJsonLayer = null; // Reset layer reference
+         console.warn("currentGeoJsonLayer was not null before creating new layer.");
+         currentGeoJsonLayer = null; // Ensure it's reset
     }
 
     const sizeToggle = document.getElementById('sizeByCapacityToggle');
@@ -249,6 +287,18 @@ function initializeMap(facilityCollection) {
         }
     }).addTo(mapInstance);
     console.log("GeoJSON layer added."); // Debug log
+    // Force map to re-evaluate its size after potential DOM changes, with a slight delay
+    setTimeout(() => {
+        if (mapInstance) { // Check if map still exists (might have been removed by rapid navigation)
+             mapInstance.invalidateSize();
+             console.log("Map size invalidated (delayed).");
+             // Also reset the view to potentially trigger tile loading
+             mapInstance.setView(mapInstance.getCenter(), mapInstance.getZoom());
+             console.log("Map view reset (delayed).");
+        } else {
+             console.log("Map instance no longer exists, skipping delayed invalidateSize.");
+        }
+    }, 10); // Delay by 10 milliseconds
 }
 
 

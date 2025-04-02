@@ -247,9 +247,15 @@ function initializeRouter() {
         const link = event.target.closest('a.nav-link');
         if (link) {
             const url = link.getAttribute('href');
+            // Check if this link should bypass the router (for full page reload)
+            if (link.hasAttribute('data-bypass-router')) {
+                console.log(`Bypassing router for: ${url} - allowing full page reload`);
+                return; // Don't prevent default, allow normal navigation
+            }
+            
             // Basic check for internal links (relative or starting with /)
             if (url && !url.startsWith('#') && !url.startsWith('javascript:') && !url.match(/^https?:\/\//)) {
-                 if (link.id === 'logoutLink') return; // Let logout handler manage navigation
+                if (link.id === 'logoutLink') return; // Let logout handler manage navigation
                 event.preventDefault();
                 console.log(`Navigating to: ${url}`);
                 loadPageContent(url);
