@@ -564,7 +564,7 @@ app.get('/api/doc_items', isAuthenticated, async (req, res) => {
         const snapshot = await query.get();
         const items = [];
         snapshot.forEach(doc => {
-            items.push(doc.data()); // Add item to the array
+            items.push({ id: doc.id, ...doc.data() }); // Include document ID with data
         }); // Close snapshot.forEach
 
         res.status(200).json(items); // Send the response after the loop

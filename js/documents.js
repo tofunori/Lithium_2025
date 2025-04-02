@@ -160,6 +160,7 @@ function updateNavButtonsState() {
 
 // Central function to navigate to a folder and update history/UI
 async function navigateToFolder(folderId, updateHistory = true) {
+    console.log('[Debug] navigateToFolder - Received folderId:', folderId); // Roo Debug Log
     console.log(`Navigating to folder: ${folderId}, Update History: ${updateHistory}`);
 
     if (!folderId || folderId === currentFolderId) {
@@ -257,6 +258,7 @@ function handleFileExplorerClick(event) {
 // Extracted logic for handling clicks on item links (files/folders)
 function handleItemLinkClick(event, itemLink) {
     const itemId = itemLink.dataset.itemId;
+    console.log('[Debug] handleItemLinkClick - Extracted itemId:', itemId); // Roo Debug Log
     const itemType = itemLink.dataset.itemType;
     console.log(`Item link clicked: ID=${itemId}, Type=${itemType}`);
 
@@ -1023,6 +1025,7 @@ function handleItemClick(event) {
 // Handles clicks on folders in tree view, breadcrumbs, or main content
 // This now primarily acts as a wrapper to call navigateToFolder
 async function handleFolderClick(folderId) {
+    console.log('[Debug] handleFolderClick - Received folderId:', folderId); // Roo Debug Log
      // Call the central navigation function, indicating history should be updated
     await navigateToFolder(folderId, true);
 }
@@ -1134,8 +1137,11 @@ async function handleTreeViewClick(event) { // Made async
     } else if (folderLink) {
         // --- Handle Navigation ---
         event.preventDefault();
+        console.log('[Debug] handleTreeViewClick - Found folderLink element:', folderLink); // Roo Debug Log
         const folderId = folderLink.dataset.folderId;
         console.log("Tree view folder link clicked:", folderId);
+        // Roo Fix: Add the missing navigation call
+        handleFolderClick(folderId);
         // Call the central navigation function, indicating history should be updated
         await navigateToFolder(folderId, true);
     }
