@@ -186,6 +186,7 @@ function createCapacityChart(facilityCollection) {
     });
 
     console.log("Creating Capacity Chart with data:", capacities); // Debug log
+    console.log('Checking for Chart object:', typeof Chart);
     capacityChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
