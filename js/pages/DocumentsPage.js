@@ -5,7 +5,7 @@ import { authService } from '../auth-service.js';
 
 // Assuming Vue is available globally
 // Assuming Vue is available globally
-// Assuming authService is available
+import FolderTreeNode from '../components/FolderTreeNode.js'; // Import the tree node component
 
 const DocumentsPage = {
   template: `
@@ -23,24 +23,19 @@ const DocumentsPage = {
            <div class="col-md-3 border-end" style="max-height: 75vh; overflow-y: auto;">
                <h5>Folder Structure</h5>
                <hr>
-               <!-- Simple Tree Placeholder - Replace with actual tree component/logic later -->
                <div id="folderTreeView">
-                   <div v-if="loadingFolders">Loading folders...</div>
-                   <ul v-else class="list-unstyled">
-                       <!-- Root node (e.g., Facility Name or 'Home') -->
-                       <li>
-                           <a href="#" @click.prevent="navigateToFolder('root')">
-                               <i class="fas fa-home me-1"></i> Home / Facility Root
-                           </a>
-                           <!-- Recursive folder rendering would go here -->
-                       </li>
-                       <!-- Placeholder for actual tree -->
-                        <li v-for="folder in topLevelFolders" :key="folder.id">
-                           <a href="#" @click.prevent="navigateToFolder(folder.id)">
-                               <i class="fas fa-folder me-1"></i> {{ folder.name }}
-                           </a>
-                       </li>
+                   <div v-if="loadingFolders" class="text-center text-muted">
+                       <div class="spinner-border spinner-border-sm" role="status"></div> Loading...
+                   </div>
+                   <!-- Render the tree starting from the root -->
+                   <ul v-else-if="folderHierarchy.root" class="list-unstyled folder-tree-root">
+                       <folder-tree-node
+                           :folder="folderHierarchy.root"
+                           :current-folder-id="currentFolderId"
+                           @navigate="navigateToFolder"
+                       />
                    </ul>
+                   <div v-else class="text-muted">Could not load folder structure.</div>
                </div>
            </div>
 
@@ -158,8 +153,11 @@ const DocumentsPage = {
       showNewFolderModal: false,
       showAddLinkModal: false,
       editingItem: null, // Store item being edited
-    };
-  },
+   };
+ },
+  components: { // Register the local component
+    FolderTreeNode
+  }, // Add comma after components definition
   computed: {
       // Filter items based on selected type
       filteredItems() {
@@ -168,11 +166,7 @@ const DocumentsPage = {
           }
           return this.items.filter(item => item.type === this.filterType);
       },
-      // Placeholder for top-level folders for the simple tree view
-      topLevelFolders() {
-          // This needs actual implementation based on fetched folderHierarchy
-          return Object.values(this.folderHierarchy).filter(f => f.parentId === 'root' && f.type === 'folder');
-      }
+      // No longer need topLevelFolders computed property
   },
   methods: {
     // Fetch items for the current folder
@@ -201,39 +195,85 @@ const DocumentsPage = {
          this.loadingItems = false;
       }
     },
-     // Fetch basic folder hierarchy (simplified for now)
-     async fetchFolderHierarchy() {
-         this.loadingFolders = true;
-         console.log("DocumentsPage: Fetching folder hierarchy (simplified)...");
-         try {
-             const token = await authService.getToken();
-             if (!token) throw new Error("Authentication required.");
-             
-             // In a real app, fetch only folders or implement recursive fetch
-             // For now, fetch all items and filter - NOT EFFICIENT for large datasets
-             const response = await fetch(`/api/doc_items`, { // Fetches root items by default
-                 headers: { 'Authorization': `Bearer ${token}` }
-             });
-             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-             const allRootItems = await response.json();
-             
-             // Simple hierarchy: just store folders found at root level for now
-             this.folderHierarchy = allRootItems
-                .filter(item => item.type === 'folder')
-                .reduce((acc, folder) => {
-                    acc[folder.id] = { id: folder.id, name: folder.name, parentId: folder.parentId };
-                    return acc;
-                }, { root: { id: 'root', name: 'Home', parentId: null } }); // Add root explicitly
+    // Fetch full folder hierarchy recursively
+    async fetchFolderHierarchy() {
+        this.loadingFolders = true;
+        this.error = null; // Clear previous errors
+        console.log("DocumentsPage: Fetching full folder hierarchy...");
+        const hierarchy = { root: { id: 'root', name: 'Home / Facility Root', parentId: null, children: [] } }; // Initialize with root
+        const foldersToFetchChildrenFor = ['root']; // Start with root
+        const fetchedFolderIds = new Set(['root']); // Keep track of fetched folders
 
-             console.log("DocumentsPage: Folder hierarchy loaded (simplified).");
+        try {
+            const token = await authService.getToken();
+            if (!token) throw new Error("Authentication required.");
 
-         } catch (err) {
-             console.error("DocumentsPage: Error fetching folder hierarchy:", err);
-             // Handle error appropriately
-         } finally {
-             this.loadingFolders = false;
-         }
-     },
+            let currentLevel = ['root'];
+            let safety = 0;
+
+            while (currentLevel.length > 0 && safety < 10) { // Safety break for deep recursion
+                safety++;
+                const promises = currentLevel.map(async (parentId) => {
+                    const response = await fetch(`/api/doc_items?parentId=${encodeURIComponent(parentId)}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) {
+                        console.error(`Failed to fetch children for ${parentId}: ${response.status}`);
+                        return []; // Return empty array on error for this parent
+                    }
+                    return await response.json();
+                });
+
+                const results = await Promise.all(promises);
+                const nextLevel = [];
+
+                results.forEach((items, index) => {
+                    const parentId = currentLevel[index];
+                    items.forEach(item => {
+                        if (item.type === 'folder' && !fetchedFolderIds.has(item.id)) {
+                            const folderData = {
+                                id: item.id,
+                                name: item.name,
+                                parentId: item.parentId,
+                                children: [] // Initialize children array
+                            };
+                            hierarchy[item.id] = folderData; // Add to flat lookup map
+                            
+                            // Add to parent's children array in the hierarchy object
+                            if (hierarchy[parentId]) {
+                                hierarchy[parentId].children.push(folderData);
+                            }
+                            
+                            fetchedFolderIds.add(item.id);
+                            nextLevel.push(item.id); // Queue this folder for fetching its children
+                        } else if (item.type === 'folder' && hierarchy[parentId]) {
+                             // If folder already fetched (e.g., via breadcrumb), ensure it's linked in children
+                             const existingFolderData = hierarchy[item.id];
+                             if (existingFolderData && !hierarchy[parentId].children.some(child => child.id === item.id)) {
+                                 hierarchy[parentId].children.push(existingFolderData);
+                             }
+                        }
+                    });
+                });
+                currentLevel = nextLevel;
+            } // End while loop
+
+            if (safety >= 10) {
+                 console.warn("Reached recursion depth limit while fetching folders.");
+            }
+
+            this.folderHierarchy = hierarchy; // Store the potentially nested hierarchy
+            console.log("DocumentsPage: Full folder hierarchy fetched:", this.folderHierarchy);
+            // Update breadcrumbs based on potentially richer hierarchy info
+            this.updateBreadcrumbs(this.currentFolderId);
+
+        } catch (err) {
+            console.error("DocumentsPage: Error fetching full folder hierarchy:", err);
+            this.error = `Failed to load folder structure: ${err.message}`;
+        } finally {
+            this.loadingFolders = false;
+        }
+    },
     // Navigate to a folder
     navigateToFolder(folderId) {
       console.log(`Navigating to folder: ${folderId}`);
