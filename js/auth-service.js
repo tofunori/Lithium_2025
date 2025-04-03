@@ -1,12 +1,14 @@
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  signOut, 
+// Import Firebase functions directly from CDN ES Module URLs
+// Using a recent version (e.g., 10.12.2) - update if needed based on installed version
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail
-} from 'firebase/auth';
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirebaseConfig } from './firebase-config.js';
 
 // Initialize Firebase
