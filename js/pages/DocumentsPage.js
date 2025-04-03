@@ -241,30 +241,64 @@ const DocumentsPage = {
       this.fetchItems(folderId);
       // Breadcrumb update happens in fetchItems callback
     },
-     // Update breadcrumb trail
-     updateBreadcrumbs(folderId) {
+     // Update breadcrumb trail (with dynamic fetching for missing parents)
+     async updateBreadcrumbs(folderId) {
+         console.log(`Updating breadcrumbs for folderId: ${folderId}`);
          const crumbs = [];
          let currentId = folderId;
-         let safety = 0; 
+         let safety = 0;
+         let fetchError = null;
 
          while (currentId && currentId !== 'root' && safety < 20) {
-              safety++;
-              const folderInfo = this.folderHierarchy[currentId];
-              if (folderInfo) {
-                  crumbs.unshift({ id: folderInfo.id, name: folderInfo.name });
-                  currentId = folderInfo.parentId; 
-              } else {
-                  // If folder info not loaded, break (or fetch it)
-                  console.warn(`Breadcrumb generation stopped: Info for folder ${currentId} not found.`);
-                  // Add a placeholder if needed
-                  crumbs.unshift({ id: currentId, name: `... (${currentId.substring(0,6)})` }); 
-                  break; 
-              }
+             safety++;
+             let folderInfo = this.folderHierarchy[currentId];
+
+             // If folder info not in our cache, fetch it dynamically
+             if (!folderInfo && currentId !== 'root') {
+                 console.log(`Fetching missing parent info for breadcrumb: ${currentId}`);
+                 try {
+                     const token = await authService.getToken();
+                     const response = await fetch(`/api/doc_items/${currentId}`, {
+                         headers: { 'Authorization': `Bearer ${token}` }
+                     });
+                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                     const fetchedData = await response.json();
+                     if (fetchedData && fetchedData.type === 'folder') {
+                         folderInfo = { id: fetchedData.id, name: fetchedData.name, parentId: fetchedData.parentId };
+                         // Cache it for future use
+                         this.folderHierarchy[currentId] = folderInfo;
+                     } else {
+                         throw new Error(`Item ${currentId} not found or is not a folder.`);
+                     }
+                 } catch (err) {
+                     console.error(`Failed to fetch parent folder info (${currentId}) for breadcrumbs:`, err);
+                     fetchError = `Failed to load full path (${err.message})`;
+                     // Add placeholder and break loop on error
+                     crumbs.unshift({ id: currentId, name: `... Error ...` });
+                     break;
+                 }
+             }
+
+             // Add crumb if info is available
+             if (folderInfo) {
+                 crumbs.unshift({ id: folderInfo.id, name: folderInfo.name });
+                 currentId = folderInfo.parentId;
+             } else {
+                 // Should not happen if fetch logic works, but break as fallback
+                 console.warn(`Breadcrumb generation stopped unexpectedly for ${currentId}.`);
+                 crumbs.unshift({ id: currentId, name: `... (${currentId.substring(0,6)})` });
+                 break;
+             }
          }
-         // Add root breadcrumb
-         // crumbs.unshift({ id: 'root', name: 'Home' }); // Added via template now
+         
          this.breadcrumbs = crumbs;
-         this.currentFolderName = crumbs.length > 0 ? crumbs[crumbs.length - 1].name : 'Home';
+         this.currentFolderName = folderId === 'root' ? 'Home' : (crumbs.length > 0 ? crumbs[crumbs.length - 1].name : '...');
+         
+         // Display fetch error if occurred
+         if (fetchError && !this.error) { // Avoid overwriting other errors
+             this.error = fetchError;
+         }
+         console.log("Breadcrumbs updated:", this.breadcrumbs);
      },
     // Get icon class based on item type
     getItemIcon(type) {
