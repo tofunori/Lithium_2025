@@ -189,18 +189,7 @@ const FacilityDetailPage = {
           this.fetchRelatedFacilities(this.facility.properties.company);
         }
         
-        // Wait for next DOM update cycle before initializing map
-        this.$nextTick(() => {
-            // Explicitly check if the map container exists before initializing
-            const mapElement = document.getElementById('facility-detail-map');
-            if (mapElement) {
-                this.initMap();
-            } else {
-                console.error("FacilityDetailPage: Map container #facility-detail-map not found in DOM after $nextTick. Cannot initialize map.");
-                // Optionally set an error state or retry logic here
-                this.error = "Failed to render map container.";
-            }
-        });
+        // Map initialization moved to updated() hook
 
       } catch (err) {
         console.error('FacilityDetailPage: Error fetching facility data:', err);
@@ -322,6 +311,22 @@ const FacilityDetailPage = {
       this.map.remove();
       this.map = null;
       console.log("Facility detail map instance removed.");
+    }
+  }
+,
+  updated() {
+    // Attempt to initialize map after DOM updates, but only once
+    // Check if map isn't already initialized AND facility data is loaded
+    if (!this.map && this.facility && !this.loading && !this.error) {
+      console.log("FacilityDetailPage: updated() hook triggered, attempting map init.");
+      // Check again if container exists, just in case
+      if (document.getElementById('facility-detail-map')) {
+          this.initMap();
+      } else {
+          console.error("FacilityDetailPage: Map container still not found in updated() hook.");
+          // Avoid setting error repeatedly if updated() triggers multiple times
+          if (!this.error) this.error = "Failed to render map container after update."; 
+      }
     }
   }
 };
