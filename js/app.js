@@ -23,9 +23,16 @@ import FacilityDetailPage from './pages/FacilityDetailPage.js'; // Import the ac
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
 // const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
 // const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
+import FacilityDetailPage from './pages/FacilityDetailPage.js';
+import DocumentsPage from './pages/DocumentsPage.js'; // Import the actual DocumentsPage
+// We will create the actual component files later
+// const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
+// const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
+// const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
+// const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
 // const FacilityDetailPage = { template: '<div>Loading Facility Detail...</div>' }; // Remove placeholder
 const ChartsPage = { template: '<div>Loading Charts...</div>' };
-const DocumentsPage = { template: '<div>Loading Documents...</div>' };
+// const DocumentsPage = { template: '<div>Loading Documents...</div>' }; // Remove placeholder
 const AboutPage = { template: '<div>Loading About Page...</div>' };
 const LoginPage = { template: '<div>Loading Login Page...</div>' }; // Placeholder for login component/page
 const EditFacilityPage = { template: '<div>Loading Edit Facility...</div>' };
