@@ -47,7 +47,7 @@ const FacilitiesPage = {
                   <tr>
                       <th @click="sortBy('properties.company')" class="sortable">Company <i :class="sortIcon('properties.company')"></i></th>
                       <th @click="sortBy('properties.name')" class="sortable">Name <i :class="sortIcon('properties.name')"></i></th>
-                      <th @click="sortBy('properties.location')" class="sortable">Location <i :class="sortIcon('properties.location')"></i></th>
+                      <th @click="sortBy('properties.address')" class="sortable">Location <i :class="sortIcon('properties.address')"></i></th>
                       <th @click="sortBy('properties.capacityNumeric')" class="sortable">Volume (t/yr) <i :class="sortIcon('properties.capacityNumeric')"></i></th>
                       <th>Method</th>
                       <th @click="sortBy('properties.status')" class="sortable">Status <i :class="sortIcon('properties.status')"></i></th>
@@ -65,7 +65,7 @@ const FacilitiesPage = {
                               {{ facility.properties.name }}
                           </router-link>
                       </td>
-                      <td>{{ facility.properties.location || 'N/A' }}</td>
+                      <td>{{ facility.properties.address || 'N/A' }}</td>
                       <td class="text-end">{{ formatCapacity(facility.properties.capacityNumeric) }}</td>
                       <td>{{ facility.properties.technology || 'N/A' }}</td>
                       <td><span :class="getStatusClass(facility.properties.status)">{{ facility.properties.status || 'Unknown' }}</span></td>
@@ -127,7 +127,7 @@ const FacilitiesPage = {
         filtered = filtered.filter(f => 
           (f.properties.name?.toLowerCase().includes(lowerSearch)) ||
           (f.properties.company?.toLowerCase().includes(lowerSearch)) ||
-          (f.properties.location?.toLowerCase().includes(lowerSearch)) 
+          (f.properties.address?.toLowerCase().includes(lowerSearch)) 
         );
       }
       return filtered;

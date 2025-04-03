@@ -292,6 +292,16 @@ app.get('/api/facilities', async (req, res) => {
             const featureData = doc.data();
             if (!featureData.properties) featureData.properties = {};
             if (!featureData.properties.id) featureData.properties.id = doc.id;
+            
+            // Debug: Log the properties of each facility
+            console.log(`Facility ${featureData.properties.id} properties:`,
+                        JSON.stringify({
+                            name: featureData.properties.name,
+                            company: featureData.properties.company,
+                            address: featureData.properties.address,
+                            location: featureData.properties.location
+                        }));
+            
             featureData.type = "Feature";
             features.push(featureData);
         });

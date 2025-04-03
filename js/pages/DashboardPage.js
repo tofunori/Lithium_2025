@@ -12,10 +12,10 @@ const DashboardPage = {
       <div class="row">
         <div class="col-12"> 
           <div class="map-container card mb-4"> <!-- Added card and mb-4 -->
-             <div class="card-header d-flex justify-content-between align-items-center">
+             <div class="card-header"> <!-- Temporarily removed d-flex justify-content-between align-items-center -->
                  <span>Facility Map</span>
                  <div class="form-check form-switch form-check-sm">
-                    <input class="form-check-input" type="checkbox" role="switch" id="sizeByCapacityToggle" v-model="sizeByCapacity">
+                    <input class="form-check-input" type="checkbox" role="switch" id="sizeByCapacityToggle" v-model="sizeByCapacity"> <!-- Removed @change -->
                     <label class="form-check-label small" for="sizeByCapacityToggle">Size by Capacity</label>
                  </div>
              </div>
@@ -54,12 +54,7 @@ const DashboardPage = {
       }
     };
   },
-  watch: {
-      // Watch the toggle state and redraw markers when it changes
-      sizeByCapacity(newValue) {
-          this.addMarkersToMap();
-      }
-  },
+  // Removed watch block for sizeByCapacity - using @change in template instead
   async mounted() {
     this.loading = true;
     this.error = null;
@@ -79,14 +74,33 @@ const DashboardPage = {
         this.error = "Failed to load map data. Please try refreshing.";
     } finally {
         this.loading = false;
+        // Wait for next tick to ensure DOM is updated after initial render/fetch
+        this.$nextTick(() => {
+            const toggleElement = document.getElementById('sizeByCapacityToggle');
+            if (toggleElement) {
+                // Store the bound listener function so we can remove it later
+                this._boundToggleListener = this.handleToggleChange.bind(this);
+                toggleElement.addEventListener('change', this._boundToggleListener);
+                console.log("Programmatic event listener added to toggle.");
+            } else {
+                console.error("Could not find toggle element to attach listener programmatically.");
+            }
+        });
     }
   },
   beforeUnmount() {
-    // Clean up map instance when component is destroyed
+    // Clean up map instance and listener when component is destroyed
     if (this.map) {
-      this.map.remove();
-      this.map = null;
-      console.log("Map instance removed.");
+        this.map.remove();
+        this.map = null;
+        console.log("Map instance removed.");
+    }
+    // Remove the programmatically added listener
+    const toggleElement = document.getElementById('sizeByCapacityToggle');
+    if (toggleElement && this._boundToggleListener) {
+        toggleElement.removeEventListener('change', this._boundToggleListener);
+        console.log("Programmatic event listener removed from toggle.");
+        this._boundToggleListener = null; // Clear reference
     }
   },
   methods: {
@@ -95,15 +109,33 @@ const DashboardPage = {
       
       try {
         this.map = L.map('map').setView([39.8283, -98.5795], 4); // Centered on US
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(this.map);
-        
-        this.markers = L.markerClusterGroup({
-             // Optional: Marker cluster options here
+
+        // --- Define Basemaps ---
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
         });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19
+        });
+
+        // --- Add Default Basemap and Layer Control ---
+        satelliteLayer.addTo(this.map); // Add Satellite by default
+
+        const baseMaps = {
+            "OpenStreetMap": osmLayer,
+            "Satellite": satelliteLayer
+        };
+
+        L.control.layers(baseMaps).addTo(this.map);
+
+        // --- Initialize Marker Layer Group (Removed Clustering) ---
+        this.markers = L.layerGroup(); // Use standard layer group instead of MarkerClusterGroup
+        // this.markers = L.markerClusterGroup({ // Optional: Marker cluster options here }); // <-- Keep old code commented for reference
         this.map.addLayer(this.markers);
-        console.log("Map initialized");
+        console.log("Map initialized with Satellite default and layer control");
       } catch (e) {
          console.error("Error initializing Leaflet map:", e);
          this.error = "Failed to initialize the map.";
@@ -135,13 +167,19 @@ const DashboardPage = {
     },
     // Calculate marker radius based on capacity
     calculateRadius(capacity) {
-        if (!this.sizeByCapacity || capacity <= 0) return 6; // Default radius
+        console.log(`CALC_RADIUS: sizeByCapacity=${this.sizeByCapacity}, capacity=${capacity}`); // Debug log
+        if (!this.sizeByCapacity || capacity <= 0) {
+            console.log(`CALC_RADIUS: Returning default radius (6)`); // Debug log
+            return 6; // Default radius
+        }
         // Simple scaling - adjust as needed
         const scaleFactor = 0.0005; 
         const minRadius = 5;
         const maxRadius = 30;
         let radius = Math.sqrt(capacity * scaleFactor) + minRadius;
-        return Math.min(radius, maxRadius); // Cap radius
+        const finalRadius = Math.min(radius, maxRadius); // Cap radius
+        console.log(`CALC_RADIUS: Calculated radius=${finalRadius}`); // Debug log
+        return finalRadius;
     },
     addMarkersToMap() {
         if (!this.map || !this.markers) {
@@ -188,6 +226,11 @@ const DashboardPage = {
         // if (this.facilities.length > 0) {
         //    this.map.fitBounds(this.markers.getBounds().pad(0.1)); 
         // }
+    },
+    // New method to handle the change event explicitly
+    handleToggleChange() {
+        console.log("HANDLE_TOGGLE_CHANGE: Toggle changed, calling addMarkersToMap..."); // Debug log
+        this.addMarkersToMap();
     },
      // Method to navigate using Vue Router (called from popup)
      navigateToDetail(facilityId) {

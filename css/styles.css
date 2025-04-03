@@ -50,6 +50,7 @@ body {
     background-color: var(--card-bg);
     border-radius: var(--card-border-radius);
     padding: 25px;
+    padding-bottom: 40px; /* Increased bottom padding to create more space */
     margin-bottom: 25px;
     box-shadow: var(--subtle-shadow);
     border-bottom: 1px solid var(--border-color);
@@ -64,6 +65,34 @@ body {
 
 .dashboard-header .text-muted {
     color: var(--text-muted-color) !important;
+}
+
+
+/* Main Content Area Spacing */
+/*
+ * Fixed Navbar Spacing
+ * -------------------
+ * When using a fixed-top navbar in Bootstrap, content can get hidden behind the navbar
+ * because the navbar is taken out of the normal document flow with position:fixed.
+ *
+ * The solution is to add padding to the body element equal to or slightly more than
+ * the navbar height. This ensures all content starts below the navbar.
+ *
+ * If you modify the navbar height, you may need to adjust this padding accordingly.
+ */
+body {
+    /* Add padding to account for the fixed navbar */
+    padding-top: 4.5rem !important;
+}
+
+/* Adjust container spacing for Vue components */
+.container-fluid.mt-4 {
+    margin-top: 1rem !important; /* Reduce the built-in margin since we have body padding */
+}
+
+/* Legacy page title spacing (for non-Vue pages) */
+.dashboard-container > #main-content {
+    margin-top: 1rem !important;
 }
 
 /* --- Navigation Menu Refinements --- */
@@ -153,7 +182,7 @@ body {
 .map-container {
     height: 70vh; /* Adjusted height to 70% of viewport height */
     border-radius: var(--card-border-radius);
-    overflow: hidden;
+    /* overflow: hidden; Removed to prevent legend clipping */
     box-shadow: var(--subtle-shadow);
     position: relative;
     border: 1px solid var(--border-color);
@@ -266,9 +295,9 @@ body {
 /* Legend styles */
 .legend {
     position: absolute;
-    bottom: 15px;
+    bottom: 50px; /* Significantly increased to ensure visibility */
     right: 15px;
-    z-index: 1000;
+    z-index: 1500; /* Increased z-index to ensure it appears above other elements */
     background-color: var(--legend-bg);
     padding: 12px 15px;
     border-radius: var(--card-border-radius);
@@ -847,9 +876,9 @@ li.tree-node[draggable="true"]:active {
 
 /* Define column widths (adjust percentages as needed) */
 .col-company { flex-basis: 20%; }
-.col-location { flex-basis: 18%; } /* Reverted reduction */
+.col-location { flex-basis: 28%; } /* Increased width */
 .col-volume { flex-basis: 17%; text-align: right; } /* Increased */
-.col-method { flex-basis: 20%; } /* Increased */
+.col-method { flex-basis: 10%; } /* Decreased to compensate for location */
 .col-status { flex-basis: 10%; text-align: center; } /* Center status */
 .col-actions { flex-basis: 8%; text-align: right; } /* Minimal space for actions */
 
@@ -867,6 +896,15 @@ li.tree-node[draggable="true"]:active {
 }
 .col-company a:hover {
     text-decoration: underline;
+}
+
+
+/* Allow location text to wrap */
+.facility-item-content .col-location {
+    white-space: normal; /* Allow wrapping */
+    overflow: visible; /* Show overflow */
+    text-overflow: clip; /* Don't use ellipsis */
+    flex-shrink: 1; /* Allow shrinking if needed, but prioritize wrapping */
 }
 
 /* Responsive adjustments */
