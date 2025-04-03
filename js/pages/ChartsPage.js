@@ -211,9 +211,26 @@ const ChartsPage = {
     // Initialize/Update all charts
     renderCharts() {
         console.log("Rendering charts...");
-        this.renderCapacityChart();
-        this.renderTechnologiesChart();
-        this.renderRegionsChart();
+        try {
+            // Check if Chart.js is still available
+            if (typeof Chart === 'undefined') {
+                console.error("Chart.js not available when rendering charts");
+                return;
+            }
+            
+            // Check if refs are available
+            if (!this.$refs.capacityChartCanvas) {
+                console.error("Canvas refs not available. DOM might not be ready.");
+                return;
+            }
+            
+            this.renderCapacityChart();
+            this.renderTechnologiesChart();
+            this.renderRegionsChart();
+            console.log("All charts rendered successfully");
+        } catch (err) {
+            console.error("Error rendering charts:", err);
+        }
     },
     // Render Capacity Chart
     renderCapacityChart() {
@@ -320,7 +337,11 @@ const ChartsPage = {
     await this.fetchFacilities();
     // Only render charts *after* data is fetched and component is mounted
     if (!this.error) {
-        this.renderCharts();
+        // Add a small delay to ensure DOM is fully rendered
+        setTimeout(() => {
+            console.log("Rendering charts after delay...");
+            this.renderCharts();
+        }, 100);
     }
   },
   beforeUnmount() {

@@ -524,6 +524,17 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Vue Router Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 /* Ensure map popup button text is visible */
 .leaflet-popup-content .info-box .btn-primary { color: #ffffff !important; }
 

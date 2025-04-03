@@ -1323,6 +1323,18 @@ app.get('/api/facilities/:id/files/:fileId/url', isAuthenticated, async (req, re
 */
 // --- End Document/Link Management Endpoints ---
 
+// --- SPA Fallback Route ---
+// This catch-all route should be added after all other routes
+// It serves the index.html file for all non-API routes to support SPA routing
+app.get('*', (req, res, next) => {
+    // Skip API routes and static files
+    if (req.path.startsWith('/api/') || req.path.match(/\.(js|css|json|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/)) {
+        return next();
+    }
+    
+    // Serve index.html for all other routes
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
 
 // --- Start Server (Only for local development) ---
 if (process.env.NODE_ENV !== 'production') {
@@ -1333,4 +1345,5 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Export the app for Vercel Serverless Functions (runs regardless)
+module.exports = app;
 module.exports = app;

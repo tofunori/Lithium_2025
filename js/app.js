@@ -48,12 +48,12 @@ const NewFacilityPage = { template: '<div>Loading New Facility...</div>' };
 // --- Route Definitions ---
 const routes = [
   { path: '/', component: DashboardPage, name: 'Dashboard' },
-  { path: '/facilities.html', component: FacilitiesPage, name: 'FacilitiesList' }, // Match old paths initially
+  { path: '/facilities', component: FacilitiesPage, name: 'FacilitiesList' },
   { path: '/facilities/:id', component: FacilityDetailPage, name: 'FacilityDetail', props: true }, // Use props to pass ID
-  { path: '/charts.html', component: ChartsPage, name: 'Charts' },
-  { path: '/documents.html', component: DocumentsPage, name: 'Documents' },
+  { path: '/charts', component: ChartsPage, name: 'Charts' },
+  { path: '/documents', component: DocumentsPage, name: 'Documents' },
   { path: '/about', component: AboutPage, name: 'About' }, // Use actual component and clean path
-  { path: '/login.html', component: LoginPage, name: 'Login' },
+  { path: '/login', component: LoginPage, name: 'Login' },
   { path: '/edit-facility.html', component: EditFacilityPage, name: 'EditFacility' }, // Assuming ID passed via query or state later
   { path: '/new-facility.html', component: NewFacilityPage, name: 'NewFacility' },
   // Redirect old index.html path if needed
