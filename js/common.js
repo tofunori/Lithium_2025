@@ -279,6 +279,7 @@ function initializeRouter() {
 }
 
 async function loadPageContent(url, pushState = true) {
+    console.log(`TRADITIONAL ROUTER: Loading content for: ${url}, pushState: ${pushState}`); // Debug log
     console.log(`Loading content for: ${url}, pushState: ${pushState}`);
     const mainContentElement = document.getElementById('main-content');
     if (!mainContentElement) {

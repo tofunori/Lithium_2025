@@ -9,6 +9,7 @@ var regionsChartInstance = null;
 
 // NEW: Initialization function called by router
 window.initChartsPage = function() {
+    console.log("TRADITIONAL initChartsPage called - this should only happen in the traditional navigation flow"); // Debug log
     console.log("Initializing Charts Page..."); // Debug log
     // Check if essential elements exist before proceeding
     const capacityCanvas = document.getElementById('capacityChart');
@@ -150,6 +151,7 @@ function createCapacityChart(facilityCollection) {
         console.warn("Capacity chart canvas not found.");
         return;
     }
+    console.log(`Destroying existing capacity chart instance: ${!!capacityChartInstance}`); // Debug log
     if (capacityChartInstance) capacityChartInstance.destroy(); // Destroy existing chart if it exists
 
     const capacities = {
@@ -186,6 +188,7 @@ function createCapacityChart(facilityCollection) {
     });
 
     console.log("Creating Capacity Chart with data:", capacities); // Debug log
+    console.log("Instantiating new Capacity Chart..."); // Debug log
     capacityChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -211,6 +214,7 @@ function createTechnologiesChart(facilityCollection) {
          console.warn("Technologies chart canvas not found.");
          return;
     }
+     console.log(`Destroying existing technologies chart instance: ${!!technologiesChartInstance}`); // Debug log
      if (technologiesChartInstance) technologiesChartInstance.destroy();
 
     const techCounts = getFacilitiesByTechnology(facilityCollection);
@@ -220,6 +224,7 @@ function createTechnologiesChart(facilityCollection) {
      }
 
     console.log("Creating Technologies Chart with data:", techCounts); // Debug log
+    console.log("Instantiating new Technologies Chart..."); // Debug log
     technologiesChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -240,6 +245,7 @@ function createRegionsChart(facilityCollection) {
         console.warn("Regions chart canvas not found.");
         return;
     }
+     console.log(`Destroying existing regions chart instance: ${!!regionsChartInstance}`); // Debug log
      if (regionsChartInstance) regionsChartInstance.destroy();
 
     const regionCounts = getFacilitiesByRegion(facilityCollection);
@@ -249,6 +255,7 @@ function createRegionsChart(facilityCollection) {
      }
 
     console.log("Creating Regions Chart with data:", regionCounts); // Debug log
+    console.log("Instantiating new Regions Chart..."); // Debug log
     regionsChartInstance = new Chart(ctx, {
         type: 'pie',
         data: {

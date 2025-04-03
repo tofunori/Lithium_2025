@@ -75,6 +75,12 @@ const router = createRouter({
   }
 });
 
+// Add navigation guard to log route changes
+router.beforeEach((to, from, next) => {
+  console.log(`VUE ROUTER: Navigating from ${from.path} to ${to.path}`);
+  next();
+});
+
 // --- Create Vue App Instance ---
 const app = createApp({
   data() {

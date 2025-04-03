@@ -56,7 +56,7 @@ const ChartsPage = {
                   <div class="card">
                       <div class="card-header"><h5>Capacity by Status (tonnes per year)</h5></div>
                       <div class="card-body">
-                          <canvas ref="capacityChartCanvas"></canvas> <!-- Use ref -->
+                          <canvas ref="capacityChartCanvas" style="width:100%; height:300px;"></canvas> <!-- Use ref with explicit dimensions -->
                       </div>
                   </div>
               </div>
@@ -68,7 +68,7 @@ const ChartsPage = {
                   <div class="card">
                       <div class="card-header"><h5>Recycling Technologies Distribution</h5></div>
                       <div class="card-body">
-                          <canvas ref="technologiesChartCanvas"></canvas> <!-- Use ref -->
+                          <canvas ref="technologiesChartCanvas" style="width:100%; height:300px;"></canvas> <!-- Use ref with explicit dimensions -->
                       </div>
                   </div>
               </div>
@@ -76,7 +76,7 @@ const ChartsPage = {
                   <div class="card">
                       <div class="card-header"><h5>Geographic Distribution (by Region/Country)</h5></div>
                       <div class="card-body">
-                          <canvas ref="regionsChartCanvas"></canvas> <!-- Use ref -->
+                          <canvas ref="regionsChartCanvas" style="width:100%; height:300px;"></canvas> <!-- Use ref with explicit dimensions -->
                       </div>
                   </div>
               </div>
@@ -93,6 +93,7 @@ const ChartsPage = {
       capacityChartInstance: null,
       technologiesChartInstance: null,
       regionsChartInstance: null,
+      _isBeingDestroyed: false, // Flag to track component unmounting
     };
   },
   computed: {
@@ -218,133 +219,294 @@ const ChartsPage = {
                 return;
             }
             
-            // Check if refs are available
-            if (!this.$refs.capacityChartCanvas) {
-                console.error("Canvas refs not available. DOM might not be ready.");
+            // Add a flag to track if component is being unmounted
+            if (this._isBeingDestroyed) {
+                console.warn("Component is being unmounted, skipping chart rendering");
                 return;
             }
             
-            this.renderCapacityChart();
-            this.renderTechnologiesChart();
-            this.renderRegionsChart();
+            // Check if refs are available
+            if (!this.$refs.capacityChartCanvas) {
+                console.error("Canvas refs not available. DOM might not be ready.");
+                // Try again after a short delay
+                setTimeout(() => {
+                    if (!this._isBeingDestroyed && this.$refs.capacityChartCanvas) {
+                        console.log("Retrying chart rendering after delay...");
+                        this.renderCapacityChart();
+                        this.renderTechnologiesChart();
+                        this.renderRegionsChart();
+                    }
+                }, 500);
+                return;
+            }
+            // We will destroy individual charts in their respective render methods
+            // this.destroyCharts(); // REMOVED - Don't destroy all charts here
+            
+            
+            // Render each chart with individual try/catch blocks
+            try {
+                this.renderCapacityChart();
+            } catch (e) {
+                console.error("Error rendering capacity chart:", e);
+            }
+            
+            try {
+                this.renderTechnologiesChart();
+            } catch (e) {
+                console.error("Error rendering technologies chart:", e);
+            }
+            
+            try {
+                this.renderRegionsChart();
+            } catch (e) {
+                console.error("Error rendering regions chart:", e);
+            }
+            
             console.log("All charts rendered successfully");
         } catch (err) {
-            console.error("Error rendering charts:", err);
+            console.error("Error in main renderCharts method:", err);
         }
     },
     // Render Capacity Chart
     renderCapacityChart() {
-        const canvas = this.$refs.capacityChartCanvas;
-        if (!canvas) {
-             console.error("Capacity chart canvas ref not found.");
-             return;
-        }
-        if (!this.capacityByStatusData) {
-            console.warn("Capacity chart data not ready.");
-            return;
-        }
-        
-        // Destroy previous instance if it exists
-        if (this.capacityChartInstance) {
-            this.capacityChartInstance.destroy();
-        }
-
-        this.capacityChartInstance = new Chart(canvas, {
-            type: 'bar',
-            data: this.capacityByStatusData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Capacity (t/yr)' } }
-                },
-                 plugins: { legend: { display: false } } // Hide legend for bar chart
+        try {
+            // Skip if component is being unmounted
+            if (this._isBeingDestroyed) {
+                console.warn("Component is being unmounted, skipping capacity chart rendering");
+                return;
             }
-        });
+            
+            const canvas = this.$refs.capacityChartCanvas;
+            if (!canvas) {
+                console.error("Capacity chart canvas ref not found.");
+                return;
+            }
+            
+            if (!this.capacityByStatusData) {
+                console.warn("Capacity chart data not ready.");
+                return;
+            }
+            
+            // Get canvas context and check if it's valid
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error("Failed to get 2D context for capacity chart");
+                return;
+            }
+            
+            // Destroy previous instance if it exists
+            if (this.capacityChartInstance) {
+                try {
+                    this.capacityChartInstance.destroy();
+                } catch (e) {
+                    console.warn("Error destroying previous capacity chart:", e);
+                }
+                this.capacityChartInstance = null;
+            }
+            
+            // Create new chart with error handling
+            console.log("Creating new capacity chart...");
+            this.capacityChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: this.capacityByStatusData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Capacity (t/yr)' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        // Add animation configuration to reduce potential issues
+                        animation: {
+                            duration: 500 // Shorter animation duration
+                        }
+                    }
+                }
+            });
+            
+            console.log("Capacity chart created successfully");
+        } catch (err) {
+            console.error("Error in renderCapacityChart:", err);
+        }
     },
      // Render Technologies Chart
      renderTechnologiesChart() {
-        const canvas = this.$refs.technologiesChartCanvas;
-         if (!canvas) {
-             console.error("Technologies chart canvas ref not found.");
-             return;
-        }
-        if (!this.technologyDistributionData) {
-            console.warn("Technology chart data not ready.");
-            return;
-        }
-        
+        try { // Add try/catch block
+            // Skip if component is being unmounted
+            if (this._isBeingDestroyed) {
+                console.warn("Component is being unmounted, skipping technologies chart rendering");
+                return;
+            }
+            
+            const canvas = this.$refs.technologiesChartCanvas;
+             if (!canvas) {
+                 console.error("Technologies chart canvas ref not found.");
+                 return;
+            }
+            if (!this.technologyDistributionData) {
+                console.warn("Technology chart data not ready.");
+                return;
+            }
+            
+            // Get canvas context and check if it's valid
+            const ctx = canvas.getContext('2d'); // Add this line to define ctx
+            if (!ctx) {
+                console.error("Failed to get 2D context for technologies chart");
+                return;
+            }
+            
+        // Destroy previous instance if it exists
         if (this.technologiesChartInstance) {
-            this.technologiesChartInstance.destroy();
+            try {
+                this.technologiesChartInstance.destroy();
+            } catch (e) {
+                console.warn("Error destroying previous technologies chart:", e);
+            }
+            this.technologiesChartInstance = null;
         }
 
-        this.technologiesChartInstance = new Chart(canvas, {
+        console.log("Creating new technologies chart...");
+        this.technologiesChartInstance = new Chart(ctx, { // Use ctx
             type: 'doughnut', // Or 'pie'
             data: this.technologyDistributionData,
              options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                 plugins: { legend: { position: 'top' } }
+                plugins: {
+                    legend: { position: 'top' },
+                    animation: { duration: 500 }
+                }
             }
         });
+        console.log("Technologies chart created successfully");
+        } catch (err) {
+            console.error("Error in renderTechnologiesChart:", err);
+        }
     },
      // Render Regions Chart
      renderRegionsChart() {
-        const canvas = this.$refs.regionsChartCanvas;
-         if (!canvas) {
-             console.error("Regions chart canvas ref not found.");
-             return;
-        }
-        if (!this.regionDistributionData) {
-            console.warn("Region chart data not ready.");
-            return;
-        }
-        
-        if (this.regionsChartInstance) {
-            this.regionsChartInstance.destroy();
-        }
-
-        this.regionsChartInstance = new Chart(canvas, {
-            type: 'pie', // Or 'doughnut'
-            data: this.regionDistributionData,
-             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                 plugins: { legend: { position: 'top' } }
+        try { // Added try block
+            // Skip if component is being unmounted
+            if (this._isBeingDestroyed) {
+                console.warn("Component is being unmounted, skipping regions chart rendering");
+                return;
             }
-        });
+            
+            const canvas = this.$refs.regionsChartCanvas;
+            if (!canvas) {
+                console.error("Regions chart canvas ref not found.");
+                return;
+            }
+            if (!this.regionDistributionData) {
+                console.warn("Region chart data not ready.");
+                return;
+            }
+            
+            // Get canvas context and check if it's valid
+            const ctx = canvas.getContext('2d'); // Added context retrieval
+            if (!ctx) {
+                console.error("Failed to get 2D context for regions chart");
+                return;
+            }
+            
+            // Destroy previous instance if it exists
+            if (this.regionsChartInstance) {
+                try {
+                    this.regionsChartInstance.destroy();
+                } catch (e) {
+                    console.warn("Error destroying previous regions chart:", e);
+                }
+                this.regionsChartInstance = null;
+            }
+            
+            console.log("Creating new regions chart...");
+            this.regionsChartInstance = new Chart(ctx, { // Use ctx
+                type: 'pie', // Or 'doughnut'
+                data: this.regionDistributionData,
+                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        animation: { duration: 500 }
+                    }
+                }
+            });
+            console.log("Regions chart created successfully"); // Added success log
+        } catch (err) {
+            console.error("Error in renderRegionsChart:", err); // Added catch block
+        }
     },
     // Destroy chart instances when component is unmounted
     destroyCharts() {
+        // Cancel any pending animation frames to prevent post-unmount rendering attempts
+        if (window.cancelAnimationFrame) {
+            // Store the current requestAnimationFrame ID
+            const id = window.requestAnimationFrame(() => {});
+            // Cancel all animation frames up to that ID
+            for (let i = id; i >= 0; i--) {
+                window.cancelAnimationFrame(i);
+            }
+            console.log(`Canceled animation frames up to ID ${id}`);
+        }
+        
+        // Destroy chart instances
         if (this.capacityChartInstance) this.capacityChartInstance.destroy();
         if (this.technologiesChartInstance) this.technologiesChartInstance.destroy();
         if (this.regionsChartInstance) this.regionsChartInstance.destroy();
+        
+        // Clear references
         this.capacityChartInstance = null;
         this.technologiesChartInstance = null;
         this.regionsChartInstance = null;
+        
         console.log("Chart instances destroyed.");
     }
   },
   async mounted() { // Make mounted async
-     // Ensure Chart.js is loaded
-     if (typeof Chart === 'undefined') {
-         console.error("Chart.js not loaded. Charts cannot be rendered.");
-         this.error = "Chart library failed to load.";
-         this.loading = false;
-         return;
-     }
-    // Fetch data when component is mounted and wait for it
-    await this.fetchFacilities();
-    // Only render charts *after* data is fetched and component is mounted
-    if (!this.error) {
-        // Add a small delay to ensure DOM is fully rendered
-        setTimeout(() => {
-            console.log("Rendering charts after delay...");
-            this.renderCharts();
-        }, 100);
-    }
+      console.log("VUE ChartsPage component mounted - this should only happen in the Vue router flow"); // Debug log
+      
+      // Reset state for clean initialization
+      this._isBeingDestroyed = false;
+      this.capacityChartInstance = null;
+      this.technologiesChartInstance = null;
+      this.regionsChartInstance = null;
+      
+      // Ensure Chart.js is loaded
+      if (typeof Chart === 'undefined') {
+          console.error("Chart.js not loaded. Charts cannot be rendered.");
+          this.error = "Chart library failed to load.";
+          this.loading = false;
+          return;
+      }
+      
+      try {
+          // Fetch data when component is mounted and wait for it
+          await this.fetchFacilities();
+          
+          // Only render charts *after* data is fetched and component is mounted
+          if (!this.error) {
+              // Use nextTick to ensure DOM is fully updated
+              this.$nextTick(() => {
+                  // Add a slightly longer delay to ensure DOM is fully rendered
+                  setTimeout(() => {
+                      console.log("Rendering charts after delay...");
+                      if (!this._isBeingDestroyed) {
+                          this.renderCharts();
+                      }
+                  }, 250);
+              });
+          }
+      } catch (err) {
+          console.error("Error in mounted hook:", err);
+          this.error = `Error initializing charts: ${err.message}`;
+      }
   },
   beforeUnmount() {
+    console.log("VUE ChartsPage component unmounting - this should happen when navigating away"); // Debug log
+    // Set the flag to prevent any pending chart renders
+    this._isBeingDestroyed = true;
     // Destroy charts before component is unmounted to prevent memory leaks
     this.destroyCharts();
   }
