@@ -7,10 +7,13 @@ const { createRouter, createWebHistory } = VueRouter;
 // Import our custom auth service
 import { authService } from './auth-service.js';
 
-// --- Placeholder Component Definitions ---
+// --- Import Actual Components ---
+// Import Actual Components
+import HeaderComponent from './components/HeaderComponent.js';
+import FooterComponent from './components/FooterComponent.js';
 // We will create the actual component files later
-const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' };
-const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' };
+// const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
+// const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
 const DashboardPage = { template: '<div>Loading Dashboard...</div>' };
 const FacilitiesPage = { template: '<div>Loading Facilities...</div>' };
 const FacilityDetailPage = { template: '<div>Loading Facility Detail...</div>' };
