@@ -23,7 +23,6 @@ import FacilityDetailPage from './pages/FacilityDetailPage.js'; // Import the ac
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
 // const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
 // const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
-import FacilityDetailPage from './pages/FacilityDetailPage.js';
 import DocumentsPage from './pages/DocumentsPage.js'; // Import the actual DocumentsPage
 // We will create the actual component files later
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
