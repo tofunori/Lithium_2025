@@ -191,7 +191,15 @@ const FacilityDetailPage = {
         
         // Wait for next DOM update cycle before initializing map
         this.$nextTick(() => {
-            this.initMap();
+            // Explicitly check if the map container exists before initializing
+            const mapElement = document.getElementById('facility-detail-map');
+            if (mapElement) {
+                this.initMap();
+            } else {
+                console.error("FacilityDetailPage: Map container #facility-detail-map not found in DOM after $nextTick. Cannot initialize map.");
+                // Optionally set an error state or retry logic here
+                this.error = "Failed to render map container.";
+            }
         });
 
       } catch (err) {
