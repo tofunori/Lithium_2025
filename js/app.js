@@ -29,8 +29,15 @@ import DocumentsPage from './pages/DocumentsPage.js'; // Import the actual Docum
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
 // const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
 // const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
+import DocumentsPage from './pages/DocumentsPage.js';
+import ChartsPage from './pages/ChartsPage.js'; // Import the actual ChartsPage
+// We will create the actual component files later
+// const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
+// const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
+// const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
+// const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
 // const FacilityDetailPage = { template: '<div>Loading Facility Detail...</div>' }; // Remove placeholder
-const ChartsPage = { template: '<div>Loading Charts...</div>' };
+// const ChartsPage = { template: '<div>Loading Charts...</div>' }; // Remove placeholder
 // const DocumentsPage = { template: '<div>Loading Documents...</div>' }; // Remove placeholder
 const AboutPage = { template: '<div>Loading About Page...</div>' };
 const LoginPage = { template: '<div>Loading Login Page...</div>' }; // Placeholder for login component/page
