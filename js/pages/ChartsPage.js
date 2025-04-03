@@ -192,11 +192,7 @@ const ChartsPage = {
         const data = await response.json();
         this.facilities = data.features || [];
         console.log(`ChartsPage: Fetched ${this.facilities.length} facilities.`);
-        
-        // Data is loaded, now render charts
-        this.$nextTick(() => {
-            this.renderCharts();
-        });
+        // Don't render charts here, let mounted hook handle it after await
 
       } catch (err) {
         console.error('ChartsPage: Error fetching facilities:', err);
@@ -222,7 +218,14 @@ const ChartsPage = {
     // Render Capacity Chart
     renderCapacityChart() {
         const canvas = this.$refs.capacityChartCanvas;
-        if (!canvas || !this.capacityByStatusData) return;
+        if (!canvas) {
+             console.error("Capacity chart canvas ref not found.");
+             return;
+        }
+        if (!this.capacityByStatusData) {
+            console.warn("Capacity chart data not ready.");
+            return;
+        }
         
         // Destroy previous instance if it exists
         if (this.capacityChartInstance) {
@@ -245,7 +248,14 @@ const ChartsPage = {
      // Render Technologies Chart
      renderTechnologiesChart() {
         const canvas = this.$refs.technologiesChartCanvas;
-        if (!canvas || !this.technologyDistributionData) return;
+         if (!canvas) {
+             console.error("Technologies chart canvas ref not found.");
+             return;
+        }
+        if (!this.technologyDistributionData) {
+            console.warn("Technology chart data not ready.");
+            return;
+        }
         
         if (this.technologiesChartInstance) {
             this.technologiesChartInstance.destroy();
@@ -264,7 +274,14 @@ const ChartsPage = {
      // Render Regions Chart
      renderRegionsChart() {
         const canvas = this.$refs.regionsChartCanvas;
-        if (!canvas || !this.regionDistributionData) return;
+         if (!canvas) {
+             console.error("Regions chart canvas ref not found.");
+             return;
+        }
+        if (!this.regionDistributionData) {
+            console.warn("Region chart data not ready.");
+            return;
+        }
         
         if (this.regionsChartInstance) {
             this.regionsChartInstance.destroy();
@@ -291,7 +308,7 @@ const ChartsPage = {
         console.log("Chart instances destroyed.");
     }
   },
-  mounted() {
+  async mounted() { // Make mounted async
      // Ensure Chart.js is loaded
      if (typeof Chart === 'undefined') {
          console.error("Chart.js not loaded. Charts cannot be rendered.");
@@ -299,8 +316,12 @@ const ChartsPage = {
          this.loading = false;
          return;
      }
-    // Fetch data when component is mounted
-    this.fetchFacilities();
+    // Fetch data when component is mounted and wait for it
+    await this.fetchFacilities();
+    // Only render charts *after* data is fetched and component is mounted
+    if (!this.error) {
+        this.renderCharts();
+    }
   },
   beforeUnmount() {
     // Destroy charts before component is unmounted to prevent memory leaks
