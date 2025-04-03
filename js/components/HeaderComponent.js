@@ -20,16 +20,16 @@ const HeaderComponent = {
               <router-link class="nav-link" to="/">Map</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/facilities.html">Facilities</router-link>
+              <router-link class="nav-link" to="/facilities">Facilities</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/charts.html">Charts</router-link>
+              <router-link class="nav-link" to="/charts">Charts</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/documents.html">Documents</router-link>
+              <router-link class="nav-link" to="/documents">Documents</router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/about.html">About</router-link>
+              <router-link class="nav-link" to="/about">About</router-link>
             </li>
           </ul>
           <div class="d-flex align-items-center">
@@ -55,7 +55,7 @@ const HeaderComponent = {
               </div>
               <div v-else>
                 <!-- Link to login page -->
-                <router-link to="/login.html" class="btn btn-sm btn-outline-success">Admin Login</router-link>
+                <router-link to="/login" class="btn btn-sm btn-outline-success">Admin Login</router-link>
               </div>
             </div>
           </div>

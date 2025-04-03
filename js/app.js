@@ -29,8 +29,8 @@ import DocumentsPage from './pages/DocumentsPage.js'; // Import the actual Docum
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
 // const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
 // const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
-import DocumentsPage from './pages/DocumentsPage.js';
 import ChartsPage from './pages/ChartsPage.js'; // Import the actual ChartsPage
+import AboutPage from './pages/AboutPage.js'; // Import the actual AboutPage
 // We will create the actual component files later
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
@@ -39,7 +39,7 @@ import ChartsPage from './pages/ChartsPage.js'; // Import the actual ChartsPage
 // const FacilityDetailPage = { template: '<div>Loading Facility Detail...</div>' }; // Remove placeholder
 // const ChartsPage = { template: '<div>Loading Charts...</div>' }; // Remove placeholder
 // const DocumentsPage = { template: '<div>Loading Documents...</div>' }; // Remove placeholder
-const AboutPage = { template: '<div>Loading About Page...</div>' };
+// const AboutPage = { template: '<div>Loading About Page...</div>' }; // Remove placeholder definition
 const LoginPage = { template: '<div>Loading Login Page...</div>' }; // Placeholder for login component/page
 const EditFacilityPage = { template: '<div>Loading Edit Facility...</div>' };
 const NewFacilityPage = { template: '<div>Loading New Facility...</div>' };
@@ -52,7 +52,7 @@ const routes = [
   { path: '/facilities/:id', component: FacilityDetailPage, name: 'FacilityDetail', props: true }, // Use props to pass ID
   { path: '/charts.html', component: ChartsPage, name: 'Charts' },
   { path: '/documents.html', component: DocumentsPage, name: 'Documents' },
-  { path: '/about.html', component: AboutPage, name: 'About' },
+  { path: '/about', component: AboutPage, name: 'About' }, // Use actual component and clean path
   { path: '/login.html', component: LoginPage, name: 'Login' },
   { path: '/edit-facility.html', component: EditFacilityPage, name: 'EditFacility' }, // Assuming ID passed via query or state later
   { path: '/new-facility.html', component: NewFacilityPage, name: 'NewFacility' },
