@@ -1,7 +1,7 @@
 // Main Vue application entry point: js/app.js
 
 // Import Vue functions
-import { createApp } from 'vue';
+import { createApp, ref, provide, readonly, computed } from 'vue'; // Import necessary Composition API functions
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Import our custom auth service
@@ -25,7 +25,7 @@ import FacilityDetailPage from './pages/FacilityDetailPage.js'; // Import the ac
 // const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
 import DocumentsPage from './pages/DocumentsPage.js'; // Import the actual DocumentsPage
 import NewFacilityPage from './pages/NewFacilityPage.vue'; // Import the new component
-import EditFacilityPage from './pages/EditFacilityPage.vue'; // Import the edit component
+import EditFacilityPage from './pages/EditFacilityPage.js'; // Import the edit component
 // We will create the actual component files later
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
@@ -58,17 +58,11 @@ const routes = [
     path: '/login',
     component: LoginPage,
     name: 'Login', // Use the imported component
-    async beforeEnter(to, from, next) {
-      const user = await authService.getCurrentUser();
-      if (user) {
-        // User is logged in, redirect away from login page
-        console.log('User already logged in, redirecting from /login to /');
-        next('/');
-      } else {
-        // User is not logged in, allow access to login page
-        console.log('User not logged in, allowing access to /login');
-        next();
-      }
+    beforeEnter(to, from, next) {
+      // Allow access to login page regardless of auth state during navigation.
+      // The actual sign-out is handled by the logout function itself.
+      // This prevents the redirect loop when logging out.
+      next();
     }
   },
   { path: '/facilities/new', component: NewFacilityPage, name: 'NewFacility' },
@@ -100,55 +94,66 @@ router.beforeEach((to, from, next) => {
 
 // --- Create Vue App Instance ---
 const app = createApp({
-  data() {
-    return {
-      // Global state accessible via this.$root in components
-      isAuthenticated: false,
-      currentUser: null, // Store user object (Firebase) or token info (JWT)
-      theme: localStorage.getItem('theme') || 'light-theme' // Load initial theme
-    };
-  },
-  methods: {
-    // Method to check auth status (can be called from components)
-    async checkAuthStatus() {
+  setup() {
+    // --- Reactive State ---
+    const isAuthenticated = ref(false);
+    const currentUser = ref(null); // Will contain user info + role
+    const userRole = ref(null); // Add a ref for the role
+    const theme = ref(localStorage.getItem('theme') || 'light-theme');
+
+    // --- Methods ---
+    const checkAuthStatus = async () => {
       console.log("Vue app: Checking auth status...");
       try {
-        const user = await authService.getCurrentUser();
-        this.isAuthenticated = !!user;
-        this.currentUser = user; // Store the user object or token info
-        console.log("Vue app: Auth status updated:", this.isAuthenticated, this.currentUser);
+        const userWithRole = await authService.getCurrentUser(); // Now returns user + role
+        isAuthenticated.value = !!userWithRole;
+        currentUser.value = userWithRole; // Store the user object (which includes role)
+        userRole.value = userWithRole ? userWithRole.role : null; // Extract role
+        console.log("Vue app: Auth status updated:", isAuthenticated.value, currentUser.value, userRole.value);
       } catch (error) {
         console.error('Vue app: Auth check error:', error);
-        this.isAuthenticated = false;
-        this.currentUser = null;
+        isAuthenticated.value = false;
+        currentUser.value = null;
+        userRole.value = null; // Clear role on error
       }
-    },
-    // Method to toggle theme
-    toggleTheme() {
-      this.theme = this.theme === 'light-theme' ? 'dark-theme' : 'light-theme';
-      localStorage.setItem('theme', this.theme);
-      document.body.classList.toggle('dark-theme', this.theme === 'dark-theme');
-      // Update theme icon if managed by Vue later
-    },
-    // Method for logout
-    async handleLogout() {
-       console.log("Vue app: Handling logout...");
-       try {
-         await authService.logout();
-         this.isAuthenticated = false;
-         this.currentUser = null;
-         router.push({ name: 'Dashboard' }); // Navigate to home after logout
-         console.log("Vue app: Logout successful.");
-       } catch(error) {
-         console.error("Vue app: Logout error:", error);
-       }
-    }
-  },
-  mounted() {
-    // Initial check when app mounts
-    this.checkAuthStatus();
-    // Apply initial theme class to body
-    document.body.classList.toggle('dark-theme', this.theme === 'dark-theme');
+    };
+
+    const toggleTheme = () => {
+      theme.value = theme.value === 'light-theme' ? 'dark-theme' : 'light-theme';
+      localStorage.setItem('theme', theme.value);
+      document.body.classList.toggle('dark-theme', theme.value === 'dark-theme');
+    };
+
+    const handleLogout = async () => {
+      console.log("Vue app: Handling logout...");
+      try {
+        await authService.logout();
+        isAuthenticated.value = false;
+        currentUser.value = null;
+        userRole.value = null; // Clear role on logout
+        router.push({ name: 'Dashboard' });
+        console.log("Vue app: Logout successful.");
+      } catch(error) {
+        console.error("Vue app: Logout error:", error);
+      }
+    };
+
+    // --- Provide State and Methods ---
+    // Use readonly for state to prevent accidental mutation in child components
+    provide('isAuthenticated', readonly(isAuthenticated));
+    provide('currentUser', readonly(currentUser)); // Provided object now contains role
+    provide('userRole', readonly(userRole)); // Provide the role separately too
+    provide('theme', readonly(theme));
+    provide('toggleTheme', toggleTheme);
+    provide('handleLogout', handleLogout);
+
+    // --- Lifecycle Hook (equivalent to mounted) ---
+    // Initial auth check
+    checkAuthStatus();
+    // Apply initial theme
+    document.body.classList.toggle('dark-theme', theme.value === 'dark-theme');
+
+    // No need to return anything from setup if not using <template> in root
   }
 });
 

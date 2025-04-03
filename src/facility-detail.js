@@ -148,23 +148,12 @@ window.initFacilityDetailPage = async function() {
                  return;
              }
 
-            if (geometry && geometry.type === 'Point' && geometry.coordinates) {
-                const coords = [geometry.coordinates[1], geometry.coordinates[0]];
-                 if (facilityMap) {
-                     console.log("Removing previous facility map instance.");
-                     facilityMap.remove(); // Remove old map if exists from previous load
-                 }
-                 console.log("Creating new facility map instance.");
-                facilityMap = L.map(facilityMapContainer).setView(coords, 13); // Pass container element
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                    maxZoom: 19
-                }).addTo(facilityMap);
-                L.marker(coords).addTo(facilityMap)
-                    .bindPopup(props.name || 'Facility Location')
-                    .openPopup();
-            } else {
+            // Map initialization moved to setupContentSwappingNav to ensure container is visible
+            if (!geometry || geometry.type !== 'Point' || !geometry.coordinates) {
                  facilityMapContainer.innerHTML = '<p>Location data not available.</p>';
+            } else {
+                // Set placeholder text until map is initialized on tab click
+                facilityMapContainer.innerHTML = '<p>Map will load when this tab is active.</p>';
             }
         }
 
@@ -201,17 +190,46 @@ window.initFacilityDetailPage = async function() {
                 link.classList.add('active');
                 targetSection.classList.add('active');
 
-                // Special handling for map: invalidate size if it's the target
-                if (targetId === '#content-location' && facilityMap) {
-                    console.log("Invalidating map size...");
-                    // Delay slightly to ensure the container is fully visible
-                    setTimeout(() => {
-                        facilityMap.invalidateSize();
-                        // Optional: Pan back to marker if needed
-                        // if (currentFacilityData?.geometry?.coordinates) {
-                        //     facilityMap.panTo([currentFacilityData.geometry.coordinates[1], currentFacilityData.geometry.coordinates[0]]);
-                        // }
-                    }, 100); // 100ms delay, adjust if needed
+                // Special handling for map: initialize or invalidate size if it's the target
+                if (targetId === '#content-location') {
+                    const facilityMapContainer = mainContent.querySelector('#facilityMap'); // Re-query container here
+                    if (facilityMapContainer && currentFacilityData?.geometry?.coordinates) {
+                        // Initialize map only if it hasn't been initialized yet
+                        if (!facilityMap) {
+                            console.log("Initializing map on tab activation...");
+                            const coords = [currentFacilityData.geometry.coordinates[1], currentFacilityData.geometry.coordinates[0]];
+                            // Clear placeholder text
+                            facilityMapContainer.innerHTML = '';
+                            try {
+                                facilityMap = L.map(facilityMapContainer).setView(coords, 13);
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                                    maxZoom: 19
+                                }).addTo(facilityMap);
+                                L.marker(coords).addTo(facilityMap)
+                                    .bindPopup(currentFacilityData.properties.name || 'Facility Location')
+                                    .openPopup();
+                            } catch (mapError) {
+                                console.error("Error initializing Leaflet map:", mapError);
+                                facilityMapContainer.innerHTML = '<p class="text-danger">Error initializing map.</p>';
+                                facilityMap = null; // Ensure it's null on error
+                            }
+                        } else {
+                            // If map already exists, just invalidate size
+                            console.log("Invalidating map size...");
+                            // Delay slightly to ensure the container is fully visible
+                            setTimeout(() => {
+                                facilityMap.invalidateSize();
+                                // Optional: Pan back to marker if needed
+                                // facilityMap.panTo([currentFacilityData.geometry.coordinates[1], currentFacilityData.geometry.coordinates[0]]);
+                            }, 100); // 100ms delay, adjust if needed
+                        }
+                    } else if (facilityMapContainer) {
+                         // Handle case where geometry is missing but container exists
+                         if (!facilityMap) { // Only set if not already initialized
+                            facilityMapContainer.innerHTML = '<p>Location data not available for map.</p>';
+                         }
+                    }
                 }
             });
         });

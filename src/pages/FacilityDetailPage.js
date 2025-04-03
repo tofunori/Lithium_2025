@@ -1,9 +1,10 @@
 // js/pages/FacilityDetailPage.js
-
+import { ref, computed, watch, onMounted, onBeforeUnmount, inject, nextTick } from 'vue'; // Import Composition API functions
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-// Assuming Vue is available globally
+import './FacilityDetailPage.css'; // Import component-specific styles
 import { authService } from '../services/authService.js'; // Import authService
+import { useRouter } from 'vue-router'; // Import useRouter
 
 const FacilityDetailPage = {
   props: ['id'], // Receive facility ID from the router parameter
@@ -19,12 +20,20 @@ const FacilityDetailPage = {
       </div>
       <div v-else-if="facility" class="facility-detail-container">
         <!-- Page Title -->
-        <h2 class="mb-3">{{ facility.properties.name }}</h2>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">{{ facility.properties.name }}</h2>
+          <!-- Moved Edit Button Here -->
+          <router-link :to="{ name: 'EditFacility', params: { id: facility.properties.id } }" class="btn btn-outline-primary btn-sm">
+             <i class="fas fa-edit"></i> Edit
+          </router-link>
+        </div>
         <hr>
 
-        <div class="row">
-          <!-- Main Info Column -->
-          <div class="col-md-8">
+        <!-- NEW Two-Column Layout Container -->
+        <div class="facility-layout-container">
+
+          <!-- Left Column -->
+          <div class="facility-left-column">
             <!-- Basic Info Card -->
             <div class="card mb-4">
               <div class="card-header">Facility Information</div>
@@ -54,7 +63,7 @@ const FacilityDetailPage = {
                  <p style="white-space: pre-wrap;">{{ facility.properties.description }}</p>
               </div>
             </div>
-            
+
              <!-- Technology Details Card -->
             <div class="card mb-4" v-if="facility.properties.technologyDetails">
               <div class="card-header">Technology Details</div>
@@ -63,14 +72,35 @@ const FacilityDetailPage = {
               </div>
             </div>
 
+          </div> <!-- End Left Column -->
+
+          <!-- Right Column -->
+          <div class="facility-right-column">
             <!-- Location Map Card -->
+            <!-- Main Facility Image -->
+            <div v-if="facility.properties.facilityImage" class="mb-4">
+              <img :src="resolveImageUrl(facility.properties.facilityImage)" :alt="facility.properties.name + ' Facility Image'" class="img-fluid rounded facility-main-image">
+            </div>
+
+
             <div class="card mb-4">
               <div class="card-header">Location</div>
               <div class="card-body p-0"> <!-- No padding for map -->
                 <div id="facility-detail-map" style="height: 300px;"></div>
               </div>
             </div>
-            
+
+            <!-- Photo Gallery Card -->
+            <div class="card mb-4" v-if="facility.properties.galleryImages && facility.properties.galleryImages.length > 0">
+              <div class="card-header">Photo Gallery</div>
+              <div class="card-body facility-gallery">
+                <div v-for="(imageUrl, index) in facility.properties.galleryImages" :key="index" class="gallery-thumbnail">
+                  <img :src="resolveImageUrl(imageUrl)" :alt="facility.properties.name + ' Gallery Image ' + (index + 1)" class="img-thumbnail">
+                </div>
+              </div>
+            </div>
+
+
              <!-- Timeline Card -->
              <div class="card mb-4" v-if="facility.properties.timeline && facility.properties.timeline.length > 0">
                  <div class="card-header">Timeline</div>
@@ -84,83 +114,42 @@ const FacilityDetailPage = {
                  </div>
              </div>
 
-          </div>
-
-          <!-- Sidebar Column -->
-          <div class="col-md-4">
-             <!-- Company Logo Card -->
-             <div class="card mb-4" v-if="facility.properties.companyLogo">
-                 <div class="card-header">Company</div>
-                 <div class="card-body text-center">
-                      <img :src="resolveImageUrl(facility.properties.companyLogo)" :alt="facility.properties.company + ' Logo'" class="img-fluid" style="max-height: 100px;">
-                 </div>
-             </div>
-             
-             <!-- Facility Image Card -->
-             <div class="card mb-4" v-if="facility.properties.facilityImage">
-                  <div class="card-header">Facility Image</div>
-                  <img :src="resolveImageUrl(facility.properties.facilityImage)" class="card-img-bottom" :alt="facility.properties.name + ' Image'">
-             </div>
-
-            <!-- Related Facilities Card -->
-            <div class="card mb-4">
-              <div class="card-header">Related Facilities ({{ facility.properties.company || 'N/A' }})</div>
-              <div class="card-body">
-                <div v-if="loadingRelated">Loading...</div>
-                <div v-else-if="relatedFacilities.length === 0">No other facilities found for this company.</div>
-                <ul v-else class="list-group list-group-flush">
-                  <li v-for="related in relatedFacilities" :key="related.id" class="list-group-item">
-                    <!-- Use router-link for internal navigation -->
-                    <router-link :to="{ name: 'FacilityDetail', params: { id: related.id }}">
-                      {{ related.name }} ({{ related.status || 'Unknown' }})
-                    </router-link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
             <!-- Admin Actions Card -->
-            <div v-if="$root.isAuthenticated" class="card mb-4">
+            <div v-if="isAdminOrEditor" class="card mb-4"> <!-- Use isAdminOrEditor computed prop -->
               <div class="card-header">Admin Actions</div>
               <div class="card-body d-grid gap-2">
-                <router-link :to="{ name: 'EditFacility', params: { id: facility.properties.id } }" class="btn btn-primary">
-                  <i class="fas fa-edit"></i> Edit Facility
-                </router-link>
-                <button @click="confirmDelete" class="btn btn-danger">
-                  <i class="fas fa-trash-alt"></i> Delete Facility
-                </button>
+                 <button @click="confirmDelete" class="btn btn-danger">
+                   <i class="fas fa-trash-alt"></i> Delete Facility
+                 </button>
               </div>
             </div>
-            
-             <!-- Document Link Card -->
-             <div class="card mb-4">
-                 <div class="card-header">Associated Documents</div>
-                 <div class="card-body">
-                      <router-link :to="{ name: 'Documents', query: { facilityId: facility.properties.id } }" class="btn btn-outline-secondary w-100">
-                          <i class="fas fa-folder-open"></i> View Documents
-                      </router-link>
-                 </div>
-             </div>
 
-          </div>
-        </div>
-      </div>
-    </div>
+          </div> <!-- End Right Column -->
+
+        </div> <!-- End Two-Column Layout Container -->
+
+      </div> <!-- End v-else-if="facility" -->
+    </div> <!-- End container -->
+
   `,
-  data() {
-    return {
-      facility: null,
-      relatedFacilities: [],
-      loading: true,
-      loadingRelated: false,
-      error: null,
-      map: null // Store map instance
-    };
-  },
-  computed: {
-    // Compute CSS class for status badge
-    statusClass() {
-      const status = this.facility?.properties?.status;
+  setup(props) {
+    // --- Injected State ---
+    const userRole = inject('userRole');
+    const router = useRouter(); // Get router instance
+
+    // --- Component State ---
+    const facility = ref(null);
+    const loading = ref(true);
+    const error = ref(null);
+    const map = ref(null); // Store map instance
+
+    // --- Computed Properties ---
+    const isAdminOrEditor = computed(() => {
+        return userRole.value === 'admin' || userRole.value === 'editor';
+    });
+
+    const statusClass = computed(() => {
+      const status = facility.value?.properties?.status;
       switch (status) {
         case 'Operating': return 'badge bg-success';
         case 'Under Construction': return 'badge bg-warning text-dark';
@@ -169,100 +158,73 @@ const FacilityDetailPage = {
         case 'Closed': return 'badge bg-secondary';
         default: return 'badge bg-light text-dark';
       }
-    }
-  },
-  methods: {
-    // Fetch main facility data
-    async fetchFacilityData() {
-      this.loading = true;
-      this.error = null;
-      console.log(`FacilityDetailPage: Fetching data for ID: ${this.id}`);
+    });
+
+    // --- Methods ---
+    const fetchFacilityData = async () => {
+      loading.value = true;
+      error.value = null;
+      console.log(`FacilityDetailPage: Fetching data for ID: ${props.id}`); // Use props.id
       try {
-        const response = await fetch(`/api/facilities/${this.id}`);
+        const response = await fetch(`/api/facilities/${props.id}`); // Use props.id
         if (!response.ok) {
-           if (response.status === 404) throw new Error(`Facility with ID ${this.id} not found.`);
+           if (response.status === 404) throw new Error(`Facility with ID ${props.id} not found.`);
            throw new Error(`HTTP error ${response.status}`);
         }
-        this.facility = await response.json();
-        console.log("FacilityDetailPage: Facility data loaded:", this.facility);
-        
-        // Fetch related facilities after main data is loaded
-        if (this.facility.properties.company) {
-          this.fetchRelatedFacilities(this.facility.properties.company);
-        }
-        
-        // Map initialization moved to updated() hook
+        facility.value = await response.json();
+        console.log("FacilityDetailPage: Facility data loaded:", facility.value);
 
+        // Removed fetchRelatedFacilities call
+        // if (facility.value.properties.company) {
+        // }
+
+        // Map initialization is now handled by the 'facility' watcher
       } catch (err) {
         console.error('FacilityDetailPage: Error fetching facility data:', err);
-        this.error = err.message;
+        error.value = err.message;
       } finally {
-        this.loading = false;
+        loading.value = false;
       }
-    },
-    // Fetch related facilities
-    async fetchRelatedFacilities(companyName) {
-        this.loadingRelated = true;
-        try {
-             const response = await fetch(`/api/facilities?company=${encodeURIComponent(companyName)}`);
-             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-             const data = await response.json();
-             this.relatedFacilities = (data.features || [])
-                .filter(f => f.properties.id !== this.id) // Exclude self
-                .map(f => ({ // Map to simpler object for display
-                     id: f.properties.id,
-                     name: f.properties.name,
-                     status: f.properties.status
-                 }));
-        } catch (err) {
-             console.error('FacilityDetailPage: Error fetching related facilities:', err);
-             // Don't set main error, just show message in related section
-        } finally {
-             this.loadingRelated = false;
-        }
-    },
-    // Initialize the Leaflet map
-    initMap() {
-       if (this.map || !this.facility?.geometry?.coordinates) return; // Don't init if map exists or no coords
+    };
 
-       // Leaflet (L) is now imported locally
+    const initMap = () => {
+       if (map.value || !facility.value?.geometry?.coordinates) return;
 
        try {
-            const [lng, lat] = this.facility.geometry.coordinates;
-            this.map = L.map('facility-detail-map').setView([lat, lng], 13); // Zoom in closer
+            const [lng, lat] = facility.value.geometry.coordinates;
+            map.value = L.map('facility-detail-map').setView([lat, lng], 13);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(this.map);
+            }).addTo(map.value);
 
             L.marker([lat, lng])
-                .addTo(this.map)
-                .bindPopup(this.facility.properties.name || 'Facility Location')
+                .addTo(map.value)
+                .bindPopup(facility.value.properties.name || 'Facility Location')
                 .openPopup();
             console.log("Facility detail map initialized.");
        } catch(e) {
            console.error("Error initializing facility detail map:", e);
-           this.error = "Failed to display location map.";
-           if (this.map) { this.map.remove(); this.map = null; }
+           error.value = "Failed to display location map.";
+           if (map.value) { map.value.remove(); map.value = null; }
        }
-    },
-     // Resolve image URLs (handle relative paths)
-     resolveImageUrl(url) {
+    };
+
+    const resolveImageUrl = (url) => {
          if (!url) return '';
-         // If url doesn't start with http, assume it's relative to root
          return url.startsWith('http') ? url : `/${url.replace(/^\//, '')}`;
-     },
-    // Confirm and handle facility deletion
-    async confirmDelete() {
-      if (!this.facility) return;
-      
-      if (confirm(`Are you sure you want to delete "${this.facility.properties.name}"? This action cannot be undone.`)) {
-        console.log(`Attempting to delete facility ID: ${this.id}`);
+    };
+
+    const confirmDelete = async () => {
+      if (!facility.value) return;
+
+      if (confirm(`Are you sure you want to delete "${facility.value.properties.name}"? This action cannot be undone.`)) {
+        console.log(`Attempting to delete facility ID: ${props.id}`);
         try {
-           const token = await authService.getToken(); // Use authService
+           const token = await authService.getToken();
            if (!token) throw new Error("Authentication token not found.");
 
-           const response = await fetch(`/api/facilities/${this.id}`, {
+           const response = await fetch(`/api/facilities/${props.id}`, {
              method: 'DELETE',
              headers: {
                'Authorization': `Bearer ${token}`
@@ -273,61 +235,72 @@ const FacilityDetailPage = {
                const result = await response.json().catch(() => ({ message: 'Unknown error' }));
                throw new Error(result.message || `HTTP error ${response.status}`);
            }
-           
+
            alert('Facility deleted successfully.');
-           this.$router.push({ name: 'FacilitiesList' }); // Navigate back to list
+           router.push({ name: 'FacilitiesList' }); // Use injected router
 
         } catch (err) {
            console.error('Error deleting facility:', err);
            alert(`Failed to delete facility: ${err.message}`);
-           this.error = `Failed to delete facility: ${err.message}`; // Show error on page
+           error.value = `Failed to delete facility: ${err.message}`;
         }
       }
-    }
-  },
-  watch: {
-    // Watch the 'id' prop for changes (when navigating between detail pages)
-    id(newId, oldId) {
+    };
+
+    // --- Watchers ---
+    watch(() => props.id, (newId, oldId) => {
       if (newId && newId !== oldId) {
         console.log(`Facility ID changed from ${oldId} to ${newId}. Refetching data.`);
-        // Clean up old map before fetching new data
-        if (this.map) {
-            this.map.remove();
-            this.map = null;
+        if (map.value) {
+            map.value.remove();
+            map.value = null;
         }
-        this.fetchFacilityData();
+        fetchFacilityData();
       }
-    }
-  },
-  mounted() {
-    // Fetch data when component is first mounted
-    this.fetchFacilityData();
-  },
-   beforeUnmount() {
-    // Clean up map instance when component is destroyed
-    if (this.map) {
-      this.map.remove();
-      this.map = null;
-      console.log("Facility detail map instance removed.");
-    }
-  }
-,
-  updated() {
-    // Attempt to initialize map after DOM updates, but only once
-    // Check if map isn't already initialized AND facility data is loaded
-    if (!this.map && this.facility && !this.loading && !this.error) {
-      console.log("FacilityDetailPage: updated() hook triggered, attempting map init.");
-      // Check again if container exists, just in case
-      if (document.getElementById('facility-detail-map')) {
-          this.initMap();
-      } else {
-          console.error("FacilityDetailPage: Map container still not found in updated() hook.");
-          // Avoid setting error repeatedly if updated() triggers multiple times
-          if (!this.error) this.error = "Failed to render map container after update."; 
+    });
+
+    // Watch for facility data to become available, then initialize map
+    watch(facility, (newFacility) => {
+      if (newFacility && newFacility.geometry?.coordinates) {
+        // Ensure DOM is updated *after* facility data is set and v-if renders the map div
+        nextTick(() => {
+          initMap();
+        });
+      } else if (!newFacility && map.value) {
+        // Clean up map if facility becomes null (e.g., navigation away and back quickly)
+        map.value.remove();
+        map.value = null;
       }
-    }
+    });
+
+    // --- Lifecycle Hooks ---
+    onMounted(() => {
+      fetchFacilityData();
+    });
+
+    onBeforeUnmount(() => {
+      if (map.value) {
+        map.value.remove();
+        map.value = null;
+        console.log("Facility detail map instance removed.");
+      }
+    }) // Removed comma before return
+
+    // --- Return values for template ---
+    return {
+      facility,
+      loading,
+      error,
+      map, // Though not directly used in template, needed for cleanup
+      isAdminOrEditor,
+      statusClass,
+      fetchFacilityData, // Added comma
+      initMap, // Added comma
+      resolveImageUrl, // Added comma
+      confirmDelete
+    };
   }
 };
 
-// Make available for import in app.js
+// Make available for default import
 export default FacilityDetailPage;

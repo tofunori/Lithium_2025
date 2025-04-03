@@ -27,7 +27,8 @@ const facilityData = {
         ],
         "feedstock": "Manufacturing scrap and end-of-life batteries",
         "products": "Black mass",
-        "fundingSource": "Private investment"
+        "fundingSource": "Private investment",
+        "galleryImages": [],
       },
       "geometry": {
         "type": "Point",

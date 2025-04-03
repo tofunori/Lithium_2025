@@ -1,7 +1,5 @@
 // js/components/HeaderComponent.js
-
-// Assuming Vue is available globally via CDN
-// Assuming authService is available globally or imported if using modules properly later
+import { inject, computed } from 'vue'; // Import inject and computed
 
 const HeaderComponent = {
   // Using template string for HTML structure based on includes/_header.html
@@ -35,9 +33,9 @@ const HeaderComponent = {
           <div class="d-flex align-items-center">
             <!-- Theme Toggle Switch -->
             <div class="form-check form-switch me-3">
-              <!-- Bind checked state to root theme data, trigger root method on change -->
-              <input class="form-check-input" type="checkbox" role="switch" id="themeSwitchHeader" 
-                     :checked="$root.theme === 'dark-theme'" 
+              <!-- Bind checked state to injected theme, trigger injected method on change -->
+              <input class="form-check-input" type="checkbox" role="switch" id="themeSwitchHeader"
+                     :checked="theme === 'dark-theme'"
                      @change="toggleTheme">
               <label class="form-check-label" for="themeSwitchHeader">
                 <!-- Dynamically change icon based on theme -->
@@ -46,12 +44,12 @@ const HeaderComponent = {
             </div>
             <!-- Auth Status -->
             <div id="authStatusHeader" class="d-flex align-items-center">
-              <!-- Use v-if/v-else based on root isAuthenticated state -->
-              <div v-if="$root.isAuthenticated">
-                <!-- Display email from Firebase user object or default -->
+              <!-- Use v-if/v-else based on injected isAuthenticated state -->
+              <div v-if="isAuthenticated">
+                <!-- Display email from injected user object or default -->
                 <span>Welcome, {{ userDisplayName }}!</span>
-                <!-- Trigger root logout method on click -->
-                <button @click="logout" class="btn btn-sm btn-outline-danger ms-2">Logout</button>
+                <!-- Trigger injected logout method on click -->
+                <button @click="handleLogout" class="btn btn-sm btn-outline-danger ms-2">Logout</button>
               </div>
               <div v-else>
                 <!-- Link to login page -->
@@ -63,31 +61,40 @@ const HeaderComponent = {
       </div>
     </nav>
   `,
-  computed: {
-    // Compute the display name based on auth state and method
-    userDisplayName() {
-      if (!this.$root.isAuthenticated) return '';
-      // If using Firebase Auth and user object exists
-      if (this.$root.currentUser && this.$root.currentUser.email) {
-        return this.$root.currentUser.email;
+  setup() {
+    // Inject the provided state and methods
+    const isAuthenticated = inject('isAuthenticated');
+    const currentUser = inject('currentUser');
+    const userRole = inject('userRole'); // Inject the userRole
+    const theme = inject('theme');
+    const toggleTheme = inject('toggleTheme');
+    const handleLogout = inject('handleLogout');
+
+    // Compute the display name based on injected state
+    const userDisplayName = computed(() => {
+      if (!isAuthenticated.value) return '';
+      if (currentUser.value && currentUser.value.email) {
+        return currentUser.value.email;
       }
-      // If using JWT (currentUser might just have token) or Firebase user has no email
-      return 'Admin'; // Fallback display name
-    },
-    // Compute the class for the theme icon
-    themeIconClass() {
-      return this.$root.theme === 'dark-theme' ? 'fas fa-sun' : 'fas fa-moon';
-    }
-  },
-  methods: {
-    // Method to call the root toggleTheme method
-    toggleTheme() {
-      this.$root.toggleTheme(); // Call method on the root Vue instance
-    },
-    // Method to call the root logout method
-    logout() {
-      this.$root.handleLogout(); // Call method on the root Vue instance
-    }
+      return 'Admin'; // Fallback
+    });
+
+    // Compute the class for the theme icon based on injected state
+    const themeIconClass = computed(() => {
+      return theme.value === 'dark-theme' ? 'fas fa-sun' : 'fas fa-moon';
+    });
+
+    // Return everything needed by the template
+    return {
+      isAuthenticated,
+      currentUser,
+      userRole, // Expose userRole if needed in template later
+      theme,
+      toggleTheme,
+      handleLogout,
+      userDisplayName,
+      themeIconClass
+    };
   },
   mounted() {
     // Bootstrap collapse functionality might need re-initialization if loaded dynamically
@@ -95,12 +102,8 @@ const HeaderComponent = {
     // For simplicity now, we assume Bootstrap handles its own events.
     console.log("HeaderComponent mounted.");
   }
+  // Removed old computed and methods options as they are replaced by setup
 };
-
-// If not using a build system, this component needs to be globally registered or imported in app.js
-// We already registered a placeholder in app.js, this definition would replace that.
-// For simplicity with CDN, we might need to attach this to the window object or adjust app.js
 
 // Make available for default import
 export default HeaderComponent;
-// Example (if needed, adjust based on actual setup): window.HeaderComponent = HeaderComponent;

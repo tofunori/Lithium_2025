@@ -1,0 +1,66 @@
+.facility-layout-container {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  gap: 1.5rem; /* Space between columns */
+  margin-top: 1rem; /* Add some space below the header/hr */
+}
+
+.facility-left-column {
+  flex: 2; /* Takes up more space */
+  min-width: 300px; /* Minimum width before wrapping */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Space between cards in this column */
+}
+
+.facility-right-column {
+  flex: 1; /* Takes up less space */
+  min-width: 300px; /* Minimum width before wrapping */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Space between cards in this column */
+}
+
+/* Ensure cards don't have bottom margin when using gap */
+.facility-left-column > .card,
+.facility-right-column > .card {
+  margin-bottom: 0 !important;
+}
+
+/* Responsive: Stack columns on medium screens and below */
+@media (max-width: 991.98px) { /* Bootstrap's lg breakpoint */
+  .facility-layout-container {
+    flex-direction: column;
+  }
+  .facility-left-column,
+  .facility-right-column {
+    flex: 1 1 100%; /* Take full width when stacked */
+    min-width: unset; /* Remove min-width when stacked */
+  }
+}
+
+
+/* Facility Image Styling */
+.facility-main-image {
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 1rem; /* Add some space below the main image */
+}
+
+/* Photo Gallery Styling */
+.facility-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem; /* Spacing between thumbnails */
+}
+
+.gallery-thumbnail {
+  flex: 1 1 calc(33.333% - 1rem); /* Aim for 3 thumbnails per row, adjusting for gap */
+  max-width: calc(33.333% - 1rem);
+}
+
+.gallery-thumbnail img {
+  width: 100%;
+  height: auto;
+  display: block;
+}

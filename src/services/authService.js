@@ -9,11 +9,13 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail
 } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore'; // Import Firestore functions
 import { getFirebaseConfig } from '../firebase-config.js'; // Adjusted path
 
 // Initialize Firebase
 const app = initializeApp(getFirebaseConfig());
 const auth = getAuth(app);
+const db = getFirestore(app); // Initialize Firestore
 
 // Feature flag to control which auth system to use
 const useFirebaseAuth = localStorage.getItem('useFirebaseAuth') === 'true';
@@ -96,12 +98,34 @@ export const authService = {
   getCurrentUser() {
     if (useFirebaseAuth) {
       return new Promise((resolve, reject) => {
-        const unsubscribe = onAuthStateChanged(auth, 
-          user => {
+        const unsubscribe = onAuthStateChanged(auth,
+          async user => { // Make the callback async
             unsubscribe();
-            resolve(user);
+            if (user) {
+              // If user is logged in, fetch their role from Firestore
+              try {
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                let role = 'viewer'; // Default role if not found or field missing
+                if (userDocSnap.exists()) {
+                  role = userDocSnap.data().role || role;
+                } else {
+                  console.warn(`User document not found in Firestore for UID: ${user.uid}. Assigning default role.`);
+                }
+                // Return user object with role included
+                resolve({ ...user, role: role });
+              } catch (firestoreError) {
+                console.error("Error fetching user role from Firestore:", firestoreError);
+                // Resolve with user but without role, or reject? Decide based on desired behavior.
+                // For now, resolve with user and default role on error.
+                resolve({ ...user, role: 'viewer' });
+              }
+            } else {
+              // User is logged out
+              resolve(null);
+            }
           },
-          error => {
+          error => { // Error during initial auth state check
             reject(error);
           }
         );
@@ -110,7 +134,9 @@ export const authService = {
       // Check for JWT token
       const token = localStorage.getItem('authToken');
       // Return a consistent structure, even if it's just the token
-      return Promise.resolve(token ? { token } : null); 
+      // Return a consistent structure, potentially including a default role for JWT admin?
+      // For now, just return token info or null. Role logic for JWT is handled in backend middleware.
+      return Promise.resolve(token ? { token: token, role: 'admin' } : null); // Assume JWT token implies admin for frontend simplicity
     }
   },
   

@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
@@ -14,7 +15,25 @@ export default defineConfig({
   server: {
     proxy: {
       // Proxy API requests to the backend server
-      '/api': 'http://localhost:3000' // Assuming backend runs on port 3000
+      '/api': {
+        // Target the base URL of the functions emulator, including project ID and region
+        target: 'http://127.0.0.1:5001/leafy-bulwark-442103-e7/us-central1',
+        changeOrigin: true, // Needed for virtual hosted sites
+        // Rewrite the path: remove the '/api' prefix before forwarding
+        // rewrite: (path) => path.replace(/^\/api/, ''), // Removed: Keep /api prefix for Firebase Functions
+        logLevel: 'debug' // Add debug logging for the proxy
+      }
     }
-  }
+  },
+  // Vitest configuration
+  test: {
+    // enable jest-like global test APIs
+    globals: true,
+    // simulate DOM with jsdom
+    environment: 'jsdom',
+    // support vue component testing
+    deps: {
+      inline: ['@vue/test-utils'],
+    },
+  },
 })
