@@ -17,7 +17,6 @@ import FacilitiesPage from './pages/FacilitiesPage.js'; // Import the actual Fac
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
 // const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
-import FacilitiesPage from './pages/FacilitiesPage.js';
 import FacilityDetailPage from './pages/FacilityDetailPage.js'; // Import the actual FacilityDetailPage
 // We will create the actual component files later
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
