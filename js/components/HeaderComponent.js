@@ -100,4 +100,7 @@ const HeaderComponent = {
 // If not using a build system, this component needs to be globally registered or imported in app.js
 // We already registered a placeholder in app.js, this definition would replace that.
 // For simplicity with CDN, we might need to attach this to the window object or adjust app.js
+
+// Make available for default import
+export default HeaderComponent;
 // Example (if needed, adjust based on actual setup): window.HeaderComponent = HeaderComponent;

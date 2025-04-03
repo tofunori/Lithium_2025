@@ -64,15 +64,11 @@ const DashboardPage = {
     this.loading = true;
     this.error = null;
     try {
-      // Ensure Leaflet and MarkerCluster are loaded (simple check)
+      // Leaflet and MarkerCluster should be loaded globally via script tags in <head>
       if (typeof L === 'undefined' || typeof L.markerClusterGroup === 'undefined') {
-         // In a real app, might load dynamically here, but for CDN assume they load first
-         console.warn("Leaflet or MarkerCluster not loaded yet. Map initialization might fail.");
-         // Attempt to wait briefly - replace with proper dynamic loading if needed
-         await new Promise(resolve => setTimeout(resolve, 500)); 
-         if (typeof L === 'undefined' || typeof L.markerClusterGroup === 'undefined') {
-            throw new Error("Leaflet libraries not available.");
-         }
+           // If still not loaded, throw error - indicates issue with script loading in index.html
+           console.error("Leaflet or MarkerCluster failed to load from CDN.");
+           throw new Error("Leaflet libraries not available.");
       }
       
       this.initMap();
