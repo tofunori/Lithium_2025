@@ -1,5 +1,5 @@
 // js/common.js - Handles header loading, theme, auth, and SPA routing
-import { authService } from './auth-service.js';
+import { authService } from './services/authService.js'; // Corrected path
 
 // --- Page Initializers Mapping ---
 const pageInitializerNames = {

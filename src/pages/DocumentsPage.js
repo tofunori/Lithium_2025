@@ -1,7 +1,7 @@
 // js/pages/DocumentsPage.js
 
 // Import authService to get tokens for API calls
-import { authService } from '../auth-service.js';
+import { authService } from '../services/authService.js'; // Corrected path
 
 // Assuming Vue is available globally
 // Assuming Vue is available globally
@@ -426,12 +426,21 @@ const DocumentsPage = {
           }
       }
   },
-  mounted() {
-    // Fetch initial data (root folder items and basic hierarchy)
-    this.fetchFolderHierarchy(); // Fetch folder structure first
-    this.fetchItems(this.currentFolderId); // Then fetch root items
-    // Initialize breadcrumbs for root
-    this.updateBreadcrumbs(this.currentFolderId); 
+  async mounted() {
+    // Check authentication before fetching data
+    if (await authService.getCurrentUser()) {
+      console.log("DocumentsPage: User is authenticated, fetching data...");
+      this.fetchFolderHierarchy(); // Fetch folder structure first
+      this.fetchItems(this.currentFolderId); // Then fetch root items
+      // Initialize breadcrumbs for root - only if authenticated and data is fetched
+      this.updateBreadcrumbs(this.currentFolderId);
+    } else {
+      console.log("DocumentsPage: User not authenticated, skipping data fetch.");
+      // No data fetching needed, router guard should handle redirect.
+      // Clear any potential loading states if they were set before the check
+      this.loadingItems = false;
+      this.loadingFolders = false;
+    }
   }
 };
 

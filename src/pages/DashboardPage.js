@@ -1,6 +1,11 @@
 // js/pages/DashboardPage.js
 
-// Assuming Leaflet (L) and MarkerCluster are loaded globally via CDN or dynamically
+import L from 'leaflet';
+// import 'leaflet.markercluster'; // Disabled clustering
+import 'leaflet/dist/leaflet.css';
+// import 'leaflet.markercluster/dist/MarkerCluster.css'; // Disabled clustering CSS
+// import 'leaflet.markercluster/dist/MarkerCluster.Default.css'; // Disabled clustering CSS
+
 // Assuming authService is available if needed for future API calls
 
 const DashboardPage = {
@@ -59,12 +64,7 @@ const DashboardPage = {
     this.loading = true;
     this.error = null;
     try {
-      // Leaflet and MarkerCluster should be loaded globally via script tags in <head>
-      if (typeof L === 'undefined' || typeof L.markerClusterGroup === 'undefined') {
-           // If still not loaded, throw error - indicates issue with script loading in index.html
-           console.error("Leaflet or MarkerCluster failed to load from CDN.");
-           throw new Error("Leaflet libraries not available.");
-      }
+      // Leaflet and MarkerCluster are now imported locally
       
       this.initMap();
       await this.fetchFacilities();
@@ -132,8 +132,8 @@ const DashboardPage = {
         L.control.layers(baseMaps).addTo(this.map);
 
         // --- Initialize Marker Layer Group (Removed Clustering) ---
+        // this.markers = L.layerGroup(); // Use standard layer group instead of MarkerClusterGroup
         this.markers = L.layerGroup(); // Use standard layer group instead of MarkerClusterGroup
-        // this.markers = L.markerClusterGroup({ // Optional: Marker cluster options here }); // <-- Keep old code commented for reference
         this.map.addLayer(this.markers);
         console.log("Map initialized with Satellite default and layer control");
       } catch (e) {

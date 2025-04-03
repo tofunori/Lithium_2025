@@ -1,7 +1,9 @@
 // js/pages/FacilityDetailPage.js
 
-// Assuming Vue, Leaflet are loaded globally
-// Assuming authService is available if needed
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+// Assuming Vue is available globally
+import { authService } from '../services/authService.js'; // Import authService
 
 const FacilityDetailPage = {
   props: ['id'], // Receive facility ID from the router parameter
@@ -121,7 +123,7 @@ const FacilityDetailPage = {
             <div v-if="$root.isAuthenticated" class="card mb-4">
               <div class="card-header">Admin Actions</div>
               <div class="card-body d-grid gap-2">
-                <router-link :to="{ name: 'EditFacility', query: { id: facility.properties.id } }" class="btn btn-primary">
+                <router-link :to="{ name: 'EditFacility', params: { id: facility.properties.id } }" class="btn btn-primary">
                   <i class="fas fa-edit"></i> Edit Facility
                 </router-link>
                 <button @click="confirmDelete" class="btn btn-danger">
@@ -223,11 +225,7 @@ const FacilityDetailPage = {
     initMap() {
        if (this.map || !this.facility?.geometry?.coordinates) return; // Don't init if map exists or no coords
 
-       if (typeof L === 'undefined') {
-           console.error("Leaflet (L) is not loaded. Cannot initialize map.");
-           this.error = "Map library failed to load.";
-           return;
-       }
+       // Leaflet (L) is now imported locally
 
        try {
             const [lng, lat] = this.facility.geometry.coordinates;

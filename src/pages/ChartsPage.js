@@ -1,6 +1,7 @@
 // js/pages/ChartsPage.js
 
-// Assuming Vue and Chart.js (Chart) are loaded globally via CDN
+import { Chart, registerables } from 'chart.js';
+// Chart.js is now imported locally
 
 const ChartsPage = {
   template: `
@@ -213,11 +214,7 @@ const ChartsPage = {
     renderCharts() {
         console.log("Rendering charts...");
         try {
-            // Check if Chart.js is still available
-            if (typeof Chart === 'undefined') {
-                console.error("Chart.js not available when rendering charts");
-                return;
-            }
+            // Chart is imported, no need for global check
             
             // Add a flag to track if component is being unmounted
             if (this._isBeingDestroyed) {
@@ -467,19 +464,16 @@ const ChartsPage = {
   async mounted() { // Make mounted async
       console.log("VUE ChartsPage component mounted - this should only happen in the Vue router flow"); // Debug log
       
+      // Register Chart.js components
+      Chart.register(...registerables);
+
       // Reset state for clean initialization
       this._isBeingDestroyed = false;
       this.capacityChartInstance = null;
       this.technologiesChartInstance = null;
       this.regionsChartInstance = null;
       
-      // Ensure Chart.js is loaded
-      if (typeof Chart === 'undefined') {
-          console.error("Chart.js not loaded. Charts cannot be rendered.");
-          this.error = "Chart library failed to load.";
-          this.loading = false;
-          return;
-      }
+      // Chart is imported, no need for global check
       
       try {
           // Fetch data when component is mounted and wait for it

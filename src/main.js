@@ -1,11 +1,11 @@
 // Main Vue application entry point: js/app.js
 
-// Import Vue functions (assuming global registration from CDN)
-const { createApp } = Vue;
-const { createRouter, createWebHistory } = VueRouter;
+// Import Vue functions
+import { createApp } from 'vue';
+import { createRouter, createWebHistory } from 'vue-router';
 
 // Import our custom auth service
-import { authService } from './auth-service.js';
+import { authService } from './services/authService.js';
 
 // --- Import Actual Components ---
 // Import Actual Components
@@ -24,6 +24,8 @@ import FacilityDetailPage from './pages/FacilityDetailPage.js'; // Import the ac
 // const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
 // const FacilitiesPage = { template: '<div>Loading Facilities...</div>' }; // Remove placeholder
 import DocumentsPage from './pages/DocumentsPage.js'; // Import the actual DocumentsPage
+import NewFacilityPage from './pages/NewFacilityPage.vue'; // Import the new component
+import EditFacilityPage from './pages/EditFacilityPage.vue'; // Import the edit component
 // We will create the actual component files later
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
@@ -40,9 +42,8 @@ import AboutPage from './pages/AboutPage.js'; // Import the actual AboutPage
 // const ChartsPage = { template: '<div>Loading Charts...</div>' }; // Remove placeholder
 // const DocumentsPage = { template: '<div>Loading Documents...</div>' }; // Remove placeholder
 // const AboutPage = { template: '<div>Loading About Page...</div>' }; // Remove placeholder definition
-const LoginPage = { template: '<div>Loading Login Page...</div>' }; // Placeholder for login component/page
-const EditFacilityPage = { template: '<div>Loading Edit Facility...</div>' };
-const NewFacilityPage = { template: '<div>Loading New Facility...</div>' };
+import LoginPage from './pages/LoginPage.vue'; // Import the actual login component
+// Placeholders removed, actual components imported above
 
 
 // --- Route Definitions ---
@@ -53,9 +54,25 @@ const routes = [
   { path: '/charts', component: ChartsPage, name: 'Charts' },
   { path: '/documents', component: DocumentsPage, name: 'Documents' },
   { path: '/about', component: AboutPage, name: 'About' }, // Use actual component and clean path
-  { path: '/login', component: LoginPage, name: 'Login' },
-  { path: '/edit-facility.html', component: EditFacilityPage, name: 'EditFacility' }, // Assuming ID passed via query or state later
-  { path: '/new-facility.html', component: NewFacilityPage, name: 'NewFacility' },
+  {
+    path: '/login',
+    component: LoginPage,
+    name: 'Login', // Use the imported component
+    async beforeEnter(to, from, next) {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        // User is logged in, redirect away from login page
+        console.log('User already logged in, redirecting from /login to /');
+        next('/');
+      } else {
+        // User is not logged in, allow access to login page
+        console.log('User not logged in, allowing access to /login');
+        next();
+      }
+    }
+  },
+  { path: '/facilities/new', component: NewFacilityPage, name: 'NewFacility' },
+  { path: '/facilities/:id/edit', component: EditFacilityPage, name: 'EditFacility', props: true }, // Use correct path, component, and props
   // Redirect old index.html path if needed
   { path: '/index.html', redirect: '/' } 
 ];

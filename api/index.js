@@ -91,7 +91,7 @@ const upload = multer({
 
 // --- Core Middleware ---
 app.use(express.json()); // Parse JSON bodies
-app.use(express.static(path.join(__dirname, '..'))); // Serve static files from root
+app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve static files from public directory
 // --- End Core Middleware ---
 
 
@@ -1343,7 +1343,7 @@ app.get('*', (req, res, next) => {
     }
     
     // Serve index.html for all other routes
-    res.sendFile(path.join(__dirname, '..', 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'src', 'views', 'index.html'));
 });
 
 // --- Start Server (Only for local development) ---

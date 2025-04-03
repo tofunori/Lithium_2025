@@ -1,6 +1,6 @@
 // Import Firebase functions directly from CDN ES Module URLs
 // Using a recent version (e.g., 10.12.2) - update if needed based on installed version
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -8,8 +8,8 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirebaseConfig } from './firebase-config.js';
+} from 'firebase/auth';
+import { getFirebaseConfig } from '../firebase-config.js'; // Adjusted path
 
 // Initialize Firebase
 const app = initializeApp(getFirebaseConfig());
@@ -55,7 +55,7 @@ export const authService = {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ username: email, password }),
+          body: JSON.stringify({ email, password }),
         });
         
         const result = await response.json();

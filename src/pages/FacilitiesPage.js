@@ -23,7 +23,7 @@ const FacilitiesPage = {
 
         <!-- Add Facility Button (Shown if authenticated) -->
         <div class="text-end mb-3">
-            <router-link v-if="$root.isAuthenticated" to="/new-facility.html" class="btn btn-success">
+            <router-link v-if="$root.isAuthenticated" :to="{ name: 'NewFacility' }" class="btn btn-success">
                <i class="fas fa-plus"></i> Add New Facility
             </router-link>
         </div>
@@ -70,7 +70,7 @@ const FacilitiesPage = {
                       <td>{{ facility.properties.technology || 'N/A' }}</td>
                       <td><span :class="getStatusClass(facility.properties.status)">{{ facility.properties.status || 'Unknown' }}</span></td>
                       <td v-if="$root.isAuthenticated">
-                          <router-link :to="{ name: 'EditFacility', query: { id: facility.properties.id } }" class="btn btn-sm btn-outline-primary">
+                          <router-link :to="{ name: 'EditFacility', params: { id: facility.properties.id } }" class="btn btn-sm btn-outline-primary">
                               <i class="fas fa-edit"></i> Edit
                           </router-link>
                           <!-- Add delete button later if needed -->
