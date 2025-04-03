@@ -1,5 +1,9 @@
 // js/pages/DocumentsPage.js
 
+// Import authService to get tokens for API calls
+import { authService } from '../auth-service.js';
+
+// Assuming Vue is available globally
 // Assuming Vue is available globally
 // Assuming authService is available
 
