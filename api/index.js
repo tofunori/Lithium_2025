@@ -161,6 +161,101 @@ function isAuthenticated(req, res, next) {
 }
 // --- End Authentication ---
 
+// --- Authorization Middleware ---
+// Middleware to check document permissions based on user role and doc_items access field
+function checkDocumentPermission(requiredAccess) {
+  // requiredAccess should be 'read' or 'write'
+  return async (req, res, next) => {
+    const itemId = req.params.id; // Assumes item ID is in the route parameters
+    if (!itemId) {
+        console.warn('checkDocumentPermission: Missing item ID in request params.');
+        return res.status(400).json({ message: 'Missing document item ID.' });
+    }
+
+    // Ensure user is authenticated and user info is attached
+    if (!req.user || (!req.user.uid && !req.user.username)) {
+        console.warn('checkDocumentPermission: User not authenticated or user info missing.');
+        return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    // Determine user identifier (Firebase UID or JWT username)
+    const userId = req.user.uid; // Primarily use Firebase UID if available
+    const jwtUsername = req.user.username; // Fallback for JWT admin
+
+    try {
+        // --- Get User Role (if using Firebase Auth) ---
+        let userRole = null;
+        if (userId) {
+            const userDocRef = db.collection('users').doc(userId);
+            const userDocSnap = await userDocRef.get();
+            if (userDocSnap.exists) {
+                userRole = userDocSnap.data().role; // Expected roles: 'admin', 'editor', 'viewer'
+            } else {
+                console.warn(`checkDocumentPermission: User document not found in Firestore for UID: ${userId}`);
+                // Decide how to handle users authenticated via Firebase but not in 'users' collection
+                // For now, treat as 'viewer' or deny access?
+                userRole = 'viewer'; // Default to least privilege
+            }
+        } else if (jwtUsername === ADMIN_USERNAME) {
+            // If using JWT and it's the admin user
+            userRole = 'admin';
+        } else {
+            // Authenticated via JWT but not the admin - treat as viewer?
+             console.warn(`checkDocumentPermission: Non-admin JWT user detected: ${jwtUsername}`);
+             userRole = 'viewer'; // Default to least privilege
+        }
+
+        // --- Admin Bypass --- 
+        // If user has 'admin' role (from Firestore or JWT), grant access immediately
+        if (userRole === 'admin') {
+            console.log(`Admin access granted for user ${userId || jwtUsername} to item ${itemId}`);
+            return next();
+        }
+
+        // --- Get Document Access Info --- 
+        const itemRef = db.collection('doc_items').doc(itemId);
+        const itemSnap = await itemRef.get();
+
+        if (!itemSnap.exists) {
+            return res.status(404).json({ message: `Document item with ID ${itemId} not found.` });
+        }
+        const itemData = itemSnap.data();
+        const access = itemData.access || {}; // Default to empty object if 'access' field is missing
+
+        // --- Permission Check Logic --- 
+        let hasPermission = false;
+        const isOwner = userId && access.owner === userId;
+        const isReader = userId && Array.isArray(access.readers) && access.readers.includes(userId);
+        const isEditor = userId && Array.isArray(access.editors) && access.editors.includes(userId);
+
+        if (requiredAccess === 'read') {
+            if (access.public || isOwner || isReader || isEditor) {
+                hasPermission = true;
+            }
+        } else if (requiredAccess === 'write') {
+            // Only owner and editors can write (admins already bypassed)
+            if (isOwner || isEditor) {
+                hasPermission = true;
+            }
+        }
+
+        // --- Grant or Deny Access --- 
+        if (hasPermission) {
+            console.log(`Access (${requiredAccess}) granted for user ${userId} to item ${itemId}`);
+            next(); // User has sufficient permission
+        } else {
+            console.warn(`Access (${requiredAccess}) denied for user ${userId || jwtUsername} (Role: ${userRole}) to item ${itemId}`);
+            return res.status(403).json({ message: 'Forbidden: Insufficient permissions.' });
+        }
+
+    } catch (error) {
+        console.error(`Error checking permissions for item ${itemId}:`, error);
+        return res.status(500).json({ message: 'Internal server error during permission check.' });
+    }
+  };
+}
+// --- End Authorization Middleware ---
+
 
 // --- API Endpoints ---
 
@@ -717,7 +812,7 @@ app.get('/api/doc_items/:id/download-url', isAuthenticated, async (req, res) => 
 
 
 // PUT /api/doc_items/:id - Update an item (rename, move, change tags)
-app.put('/api/doc_items/:id', isAuthenticated, async (req, res) => {
+app.put('/api/doc_items/:id', isAuthenticated, checkDocumentPermission('write'), async (req, res) => {
     const itemId = req.params.id;
     const updateData = req.body; // e.g., { name: 'newName' } or { parentId: 'newParentId' } or { tags: [...] }
 
@@ -804,7 +899,7 @@ app.put('/api/doc_items/:id', isAuthenticated, async (req, res) => {
 
 
 // DELETE /api/doc_items/:id - Delete an item (file, link, or folder recursively)
-app.delete('/api/doc_items/:id', isAuthenticated, async (req, res) => {
+app.delete('/api/doc_items/:id', isAuthenticated, checkDocumentPermission('write'), async (req, res) => {
     const itemId = req.params.id;
     if (!itemId) return res.status(400).json({ message: 'Missing item ID.' });
 
