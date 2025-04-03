@@ -11,10 +11,11 @@ import { authService } from './auth-service.js';
 // Import Actual Components
 import HeaderComponent from './components/HeaderComponent.js';
 import FooterComponent from './components/FooterComponent.js';
+import DashboardPage from './pages/DashboardPage.js'; // Import the actual DashboardPage
 // We will create the actual component files later
 // const HeaderComponent = { template: '<div><!-- Header Placeholder --></div>' }; // Remove placeholder
 // const FooterComponent = { template: '<div><!-- Footer Placeholder --></div>' }; // Remove placeholder
-const DashboardPage = { template: '<div>Loading Dashboard...</div>' };
+// const DashboardPage = { template: '<div>Loading Dashboard...</div>' }; // Remove placeholder
 const FacilitiesPage = { template: '<div>Loading Facilities...</div>' };
 const FacilityDetailPage = { template: '<div>Loading Facility Detail...</div>' };
 const ChartsPage = { template: '<div>Loading Charts...</div>' };
