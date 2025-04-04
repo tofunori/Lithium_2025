@@ -80,11 +80,46 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, onDeactivated, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
 
 // Register Chart.js components
 Chart.register(...registerables);
+
+// Add safety patch for Chart.js to prevent operations on destroyed charts
+// This helps prevent "Cannot read properties of null" errors
+const originalDraw = Chart.prototype.draw;
+Chart.prototype.draw = function() {
+  try {
+    // Check if the chart context is still valid before drawing
+    if (!this.ctx || !this.canvas || !document.contains(this.canvas)) {
+      console.warn(`Chart draw prevented - chart ${this.id} has invalid context or is not in DOM`);
+      return;
+    }
+    return originalDraw.apply(this, arguments);
+  } catch (error) {
+    console.error(`Error in patched Chart.draw for chart ${this.id}:`, error);
+    // Don't rethrow to prevent uncaught exceptions
+  }
+};
+
+// Add similar safety patch for _drawDataset method which is involved in the error
+const originalDrawDataset = Chart.prototype._drawDataset;
+if (originalDrawDataset) {
+  Chart.prototype._drawDataset = function(meta) {
+    try {
+      // Check if the chart is still valid before drawing dataset
+      if (!this.ctx || !this.canvas || !document.contains(this.canvas)) {
+        console.warn(`Chart _drawDataset prevented - chart ${this.id} has invalid context or is not in DOM`);
+        return;
+      }
+      return originalDrawDataset.apply(this, arguments);
+    } catch (error) {
+      console.error(`Error in patched Chart._drawDataset for chart ${this.id}:`, error);
+      // Don't rethrow to prevent uncaught exceptions
+    }
+  };
+}
 
 // --- State ---
 const facilities = ref([]);
@@ -197,55 +232,168 @@ const fetchFacilities = async () => {
 };
 
 const renderCapacityChart = () => {
-  capacityChartInstance.value?.destroy(); // Destroy previous instance if exists
-  if (!capacityChartCanvas.value) { console.error("Capacity canvas ref not ready"); return; }
+  console.log("renderCapacityChart called, current instance:", capacityChartInstance.value ? "exists" : "null");
+  
+  // Safely destroy previous instance if it exists
+  if (capacityChartInstance.value) {
+    try {
+      capacityChartInstance.value.destroy();
+      console.log("Previous capacity chart instance destroyed successfully");
+    } catch (e) {
+      console.error("Error destroying previous capacity chart:", e);
+    }
+    capacityChartInstance.value = null;
+  }
+  
+  // Check if canvas is available
+  if (!capacityChartCanvas.value) {
+    console.error("Capacity canvas ref not ready");
+    return;
+  }
+  
   try {
     const ctx = capacityChartCanvas.value.getContext('2d');
-    if (!ctx) { console.error("Failed to get 2D context for capacity chart"); return; }
+    if (!ctx) {
+      console.error("Failed to get 2D context for capacity chart");
+      return;
+    }
+    
+    // Create new chart instance
     capacityChartInstance.value = new Chart(ctx, {
       type: 'bar',
       data: capacityByStatusData.value,
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Capacity (t/yr)' } } }, plugins: { legend: { display: false } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Capacity (t/yr)'
+            }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
     });
-    console.log("Capacity chart created.");
-  } catch (e) { console.error("Error rendering capacity chart:", e); }
+    console.log("Capacity chart created successfully with ID:", capacityChartInstance.value.id);
+  } catch (e) {
+    console.error("Error rendering capacity chart:", e);
+    capacityChartInstance.value = null; // Ensure reference is null if creation fails
+  }
 };
 
 const renderTechnologiesChart = () => {
-  technologiesChartInstance.value?.destroy(); // Destroy previous instance if exists
-  if (!technologiesChartCanvas.value) { console.error("Technologies canvas ref not ready"); return; }
-   try {
+  console.log("renderTechnologiesChart called, current instance:", technologiesChartInstance.value ? "exists" : "null");
+  
+  // Safely destroy previous instance if it exists
+  if (technologiesChartInstance.value) {
+    try {
+      technologiesChartInstance.value.destroy();
+      console.log("Previous technologies chart instance destroyed successfully");
+    } catch (e) {
+      console.error("Error destroying previous technologies chart:", e);
+    }
+    technologiesChartInstance.value = null;
+  }
+  
+  // Check if canvas is available
+  if (!technologiesChartCanvas.value) {
+    console.error("Technologies canvas ref not ready");
+    return;
+  }
+  
+  try {
     const ctx = technologiesChartCanvas.value.getContext('2d');
-    if (!ctx) { console.error("Failed to get 2D context for technologies chart"); return; }
+    if (!ctx) {
+      console.error("Failed to get 2D context for technologies chart");
+      return;
+    }
+    
+    // Create new chart instance
     technologiesChartInstance.value = new Chart(ctx, {
       type: 'doughnut',
       data: technologyDistributionData.value,
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        }
+      }
     });
-     console.log("Technologies chart created.");
-  } catch (e) { console.error("Error rendering technologies chart:", e); }
+    console.log("Technologies chart created successfully with ID:", technologiesChartInstance.value.id);
+  } catch (e) {
+    console.error("Error rendering technologies chart:", e);
+    technologiesChartInstance.value = null; // Ensure reference is null if creation fails
+  }
 };
 
 const renderRegionsChart = () => {
-  regionsChartInstance.value?.destroy(); // Destroy previous instance if exists
-  if (!regionsChartCanvas.value) { console.error("Regions canvas ref not ready"); return; }
-   try {
+  console.log("renderRegionsChart called, current instance:", regionsChartInstance.value ? "exists" : "null");
+  
+  // Safely destroy previous instance if it exists
+  if (regionsChartInstance.value) {
+    try {
+      regionsChartInstance.value.destroy();
+      console.log("Previous regions chart instance destroyed successfully");
+    } catch (e) {
+      console.error("Error destroying previous regions chart:", e);
+    }
+    regionsChartInstance.value = null;
+  }
+  
+  // Check if canvas is available
+  if (!regionsChartCanvas.value) {
+    console.error("Regions canvas ref not ready");
+    return;
+  }
+  
+  try {
     const ctx = regionsChartCanvas.value.getContext('2d');
-     if (!ctx) { console.error("Failed to get 2D context for regions chart"); return; }
+    if (!ctx) {
+      console.error("Failed to get 2D context for regions chart");
+      return;
+    }
+    
+    // Create new chart instance
     regionsChartInstance.value = new Chart(ctx, {
       type: 'pie',
       data: regionDistributionData.value,
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        }
+      }
     });
-     console.log("Regions chart created.");
-  } catch (e) { console.error("Error rendering regions chart:", e); }
+    console.log("Regions chart created successfully with ID:", regionsChartInstance.value.id);
+  } catch (e) {
+    console.error("Error rendering regions chart:", e);
+    regionsChartInstance.value = null; // Ensure reference is null if creation fails
+  }
 };
 
 const renderAllCharts = () => {
     console.log("Attempting to render all charts...");
-    renderCapacityChart();
-    renderTechnologiesChart();
-    renderRegionsChart();
+    
+    // Check if component is still mounted before rendering
+    // This helps prevent rendering after the component has been unmounted
+    if (document.contains(capacityChartCanvas.value) &&
+        document.contains(technologiesChartCanvas.value) &&
+        document.contains(regionsChartCanvas.value)) {
+        
+        renderCapacityChart();
+        renderTechnologiesChart();
+        renderRegionsChart();
+        console.log("All charts rendered successfully");
+    } else {
+        console.warn("Skipping chart rendering - canvas elements are no longer in the DOM");
+    }
 };
 
 // --- Lifecycle Hooks ---
@@ -271,10 +419,49 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   console.log("ChartsView unmounting. Destroying charts safely...");
-  capacityChartInstance.value?.destroy();
-  technologiesChartInstance.value?.destroy();
-  regionsChartInstance.value?.destroy();
-  console.log("Charts destroyed.");
+  // Destroy charts and explicitly set instances to null
+  if (capacityChartInstance.value) {
+    capacityChartInstance.value.destroy();
+    capacityChartInstance.value = null;
+    console.log("Capacity chart destroyed and reference nullified.");
+  }
+  
+  if (technologiesChartInstance.value) {
+    technologiesChartInstance.value.destroy();
+    technologiesChartInstance.value = null;
+    console.log("Technologies chart destroyed and reference nullified.");
+  }
+  
+  if (regionsChartInstance.value) {
+    regionsChartInstance.value.destroy();
+    regionsChartInstance.value = null;
+    console.log("Regions chart destroyed and reference nullified.");
+  }
+  
+  console.log("All charts destroyed and references nullified.");
+});
+
+// Add activated/deactivated hooks for route reuse scenarios
+onActivated(() => {
+  console.log("ChartsView activated. Checking if charts need to be recreated...");
+  // Only recreate charts if they don't exist (were previously destroyed)
+  if (!capacityChartInstance.value && !loading.value && !error.value) {
+    console.log("Charts don't exist, recreating them on activation...");
+    nextTick(() => {
+      if (capacityChartCanvas.value && technologiesChartCanvas.value && regionsChartCanvas.value) {
+        renderAllCharts();
+      } else {
+        console.error("One or more canvas refs are not available on activation.");
+      }
+    });
+  } else {
+    console.log("Charts already exist or data still loading, skipping recreation on activation.");
+  }
+});
+
+onDeactivated(() => {
+  console.log("ChartsView deactivated. Performing cleanup...");
+  // Additional cleanup if needed when component is deactivated but not unmounted
 });
 
 </script>
