@@ -164,12 +164,21 @@ const capacityByStatusData = computed(() => {
       capacity[status] += cap;
     }
   });
+
+  // Filter out 'Pilot' and 'Closed' statuses
+  const filteredCapacity = {
+    'Operating': capacity['Operating'],
+    'Under Construction': capacity['Under Construction'],
+    'Planned': capacity['Planned']
+  };
+
   return {
-    labels: Object.keys(capacity),
+    labels: Object.keys(filteredCapacity),
     datasets: [{
       label: 'Capacity (t/yr)',
-      data: Object.values(capacity),
-      backgroundColor: ['#4CAF50', '#FFC107', '#2196F3', '#9C27B0', '#607D8B']
+      data: Object.values(filteredCapacity),
+      // Update colors to match the filtered statuses
+      backgroundColor: ['#4CAF50', '#FFC107', '#2196F3']
     }]
   };
 });

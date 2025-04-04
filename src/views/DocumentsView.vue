@@ -328,9 +328,23 @@ const getItemIcon = (type) => {
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return 'N/A';
   try {
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    let date;
+    if (timestamp.toDate) {
+      // Handle Firestore Timestamp objects
+      date = timestamp.toDate();
+    } else if (timestamp.seconds && timestamp.nanoseconds) {
+      // Handle serialized Firestore Timestamp objects
+      date = new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+    } else if (timestamp._seconds && timestamp._nanoseconds) {
+      // Handle serialized Firestore Timestamp objects with underscore prefix
+      date = new Date(timestamp._seconds * 1000 + timestamp._nanoseconds / 1000000);
+    } else {
+      // Handle regular date strings or timestamps
+      date = new Date(timestamp);
+    }
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   } catch (e) {
+    console.error('Error formatting timestamp:', timestamp, e);
     return 'Invalid Date';
   }
 };
