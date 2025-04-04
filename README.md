@@ -11,52 +11,75 @@ This interactive dashboard provides a comprehensive overview of lithium battery 
 
 ## Getting Started
 
-### Running the Dashboard Locally
+### Prerequisites
 
-Since the dashboard uses JavaScript to load local data files, you need to run it on a local web server to avoid CORS issues. Here are a few ways to do this:
+*   Node.js (LTS version recommended)
+*   npm (comes with Node.js) or yarn
 
-#### Option 1: Using Python
+### Installation
 
-If you have Python installed, you can start a simple HTTP server:
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd lithium-recycling-dashboard
+    ```
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    yarn install
+    ```
 
-```bash
-# Navigate to the dashboard directory
-cd "D:\UQTR\Lithium 2025\lithium_dashboard"
+### Environment Setup
 
-# Python 3
-python -m http.server 8000
+1.  **Configure Environment Variables:** Follow the instructions in the [Environment Variables](#environment-variables) section below to set up your `.env` file with the necessary Firebase and API configurations.
 
-# Python 2
-python -m SimpleHTTPServer 8000
-```
+### Running Locally (Development)
 
-Then open your browser and go to: http://localhost:8000
+1.  **Start the development server:**
+    ```bash
+    npm run dev
+    # or
+    yarn dev
+    ```
+2.  Open your browser and navigate to the URL provided (usually `http://localhost:5173` or similar). The application will automatically reload when you make changes to the code.
 
-#### Option 2: Using Node.js
+### Building for Production
 
-If you have Node.js installed, you can use packages like `http-server`:
+1.  **Create a production build:**
+    ```bash
+    npm run build
+    # or
+    yarn build
+    ```
+2.  This command compiles the application and outputs the static files to the `dist/` directory. These files are ready to be deployed to a static web host.
 
-```bash
-# Install http-server globally (if not already installed)
-npm install -g http-server
+## Environment Variables
 
-# Navigate to the dashboard directory
-cd "D:\UQTR\Lithium 2025\lithium_dashboard"
+This project uses environment variables for configuration, particularly for Firebase and API endpoints. These are managed using `.env` files.
 
-# Start the server
-http-server
-```
+1.  **Create a `.env` file:** Copy the `.env.example` (or create one from scratch) to `.env` in the project root.
+    ```
+    cp .env.example .env
+    ```
+2.  **Fill in the variables:** Populate the `.env` file with your specific configuration details, especially for Firebase.
 
-Then open your browser to the URL shown in the terminal.
+   *   `VITE_FIREBASE_API_KEY`: Your Firebase project's API Key.
+   *   `VITE_FIREBASE_AUTH_DOMAIN`: Your Firebase project's Auth Domain.
+   *   `VITE_FIREBASE_DATABASE_URL`: Your Firebase project's Database URL (if using Realtime Database).
+   *   `VITE_FIREBASE_PROJECT_ID`: Your Firebase project's ID.
+   *   `VITE_FIREBASE_STORAGE_BUCKET`: Your Firebase project's Storage Bucket.
+   *   `VITE_FIREBASE_MESSAGING_SENDER_ID`: Your Firebase project's Messaging Sender ID.
+   *   `VITE_FIREBASE_APP_ID`: Your Firebase project's App ID.
+   *   `VITE_FIREBASE_MEASUREMENT_ID`: Your Firebase project's Measurement ID (optional).
+   *   `VITE_API_URL`: The base URL for the backend API (e.g., `http://localhost:3000/api` for development).
 
-### Generating Facility Pages
+3.  **Environment-Specific Files:**
+    *   `.env.development`: Variables specifically for the development environment (overrides `.env`).
+    *   `.env.production`: Variables specifically for the production environment (overrides `.env`). **Do not commit sensitive production keys.** Set these in your deployment environment.
 
-The dashboard includes a page generator tool to create individual facility pages based on the data in `facilityData.js`.
+**Important:** Add `.env`, `.env.*.local`, and potentially `.env.local` to your `.gitignore` file to avoid committing sensitive credentials.
 
-1. Start your local web server using one of the methods above
-2. Navigate to http://localhost:8000/generate_facility_pages.html
-3. Click the "Generate All Facility Pages" button
-4. Download the generated HTML files and place them in the `facilities/` folder
 
 ## Directory Structure
 

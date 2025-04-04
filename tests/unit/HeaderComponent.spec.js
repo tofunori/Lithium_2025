@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue' // Import ref
-import HeaderComponent from '../../src/components/HeaderComponent.js' // Adjust path if needed
+import HeaderComponent from '../../src/components/HeaderComponent.vue' // Adjust path if needed
 import { createRouter, createWebHistory } from 'vue-router'
 
 // Create a mock router instance

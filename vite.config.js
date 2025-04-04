@@ -1,12 +1,14 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import path from 'path'; // Import the 'path' module
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, 'src'), // Add alias for @ pointing to src
       'vue': 'vue/dist/vue.esm-bundler.js'
     }
   },
